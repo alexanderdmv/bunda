@@ -1,0 +1,207 @@
+app:
+  chain: solana
+  source: helius_dexscreener
+  db_path: data/processed/tracker.db
+tracking:
+  enabled: true
+  refresh_seconds: 30
+sources:
+  helius_dexscreener:
+    rpc_base: https://mainnet.helius-rpc.com
+    rpc_timeout_seconds: 20
+    poll_seconds: 1
+    signatures_limit: 200
+    max_txs_per_poll: 140
+    max_new_mints_per_poll: 140
+    discovery_state_path: data/processed/helius_discovery_state.json
+    pumpfun_meta_path: data/processed/pumpfun_meta.json
+    pumpfun_curve_enrich: true
+    pumpfun_curve_refresh_seconds: 2.5
+    seen_path: data/processed/seen_dexscreener.json
+    per_pair_sleep_seconds: 0.1
+    dexscreener_timeout_seconds: 15
+    debug: false
+    programs:
+      pumpfun_program_id: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P
+      raydium_amm_v4_program_id: disabled
+    ignore_mints:
+    - So11111111111111111111111111111111111111112
+    - EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+    - Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB
+    pending_recheck:
+      enabled: true
+      interval_seconds: 45
+      ttl_seconds: 900
+      max_pending: 5000
+      max_due_pending_per_poll: 60
+      autosave_every: 25
+      max_tries_total: 12
+      max_tries_no_pairs: 10
+      max_tries_metrics: 6
+      temporary_skip_reasons:
+      - dexscreener_404
+      - dexscreener_error
+      - http_error
+      - liq_lt_min
+      - no_pairs
+      - request_error
+      - runner_holders_lt_min
+      - runner_trades_m5_lt_min
+      - runner_volume_m5_lt_min
+      - safe_holders_lt_min
+      - trade_h1_lt_min
+      - trade_h6_lt_min
+      - trade_m5_lt_min
+      - vol_h1_lt_min
+      - vol_h6_lt_min
+      - vol_m5_lt_min
+      min_seconds: 30
+      max_seconds: 90
+      max_tries_errors: 10
+    paid_orders:
+      enabled: false
+      ttl_seconds: 300
+      timeout_seconds: 10
+    enabled: true
+  dexscreener:
+    poll_seconds: 8
+    profiles_limit: 30
+    timeout_seconds: 20
+    seen_path: null
+    max_new_tokens_per_poll: 30
+    per_pair_sleep_seconds: 0.1
+    pending_recheck:
+      enabled: true
+      interval_seconds: 45
+      ttl_seconds: 600
+      max_pending: 2000
+      max_due_pending_per_poll: 50
+      flush_every_n: 25
+      temporary_skip_reasons:
+      - no_pairs
+      - http_error
+      - request_error
+    include:
+      boosts_latest: false
+      boosts_top: false
+      ads_latest: false
+      community_takeovers_latest: false
+    paid_orders:
+      enabled: false
+      only_after_watch: true
+      cache_minutes: 60
+      max_checks_per_minute: 30
+    enabled: false
+enrichment:
+  helius:
+    enabled: true
+    rpc_base: https://mainnet.helius-rpc.com
+    timeout_seconds: 20
+    fields:
+      token_supply: true
+      largest_accounts: true
+      top_holder_percentiles: true
+  rugcheck:
+    enabled: false
+    base_url: https://api.rugcheck.xyz
+    timeout_seconds: 20
+    max_risk_score: null
+    require_no_honeypot_flags: false
+  pump_state_from_executor:
+    enabled: true
+    timeout_seconds: 1.8
+    cache_ttl_seconds: 2.5
+filter:
+  enabled: true
+  layers:
+    safe_gate:
+      enabled: false
+      require_authority_revoked: false
+      max_top1_holder_pct: 14.0
+      max_top10_holder_pct: 42.0
+      min_holders: 0
+      require_dex_paid: false
+      require_boosted: false
+      require_socials: false
+    runner_gate:
+      enabled: true
+      max_age_minutes: 2
+      min_age_minutes: 0
+      liquidity_source: bonding_curve
+      allow_no_pairs_if_bonding_curve: true
+      min_bonding_curve_real_sol: 0.3
+      min_liquidity_usd: 0
+      min_trade_m5: 10
+      min_volume_m5_usd: 1000
+      max_sell_to_buy_ratio_m5: 99.0
+      max_abs_price_change_m5: 9999.0
+      min_trade_h1: 0
+      min_volume_h1_usd: 0.0
+      max_sell_to_buy_ratio_h1: 99.0
+      max_abs_price_change_h1: 9999.0
+      min_trade_h6: 0
+      max_abs_price_change_h24: 9999.0
+  max_age_minutes: 20
+  min_age_minutes: 0
+milestones:
+  market_cap_hit_usd: 50000
+  validate_hit: true
+  record_invalid_hits: true
+  min_liquidity_usd: 12000
+  min_volume_h24_usd: 1200
+  min_trade_h24: 70
+  min_unique_wallet_h24: 10
+  min_holders: 50
+  max_age_minutes: 180
+  max_abs_price_change_h24: 2500
+notify:
+  console:
+    show_ca_on_watch: true
+    show_dexscreener_url: true
+  discord:
+    enabled: false
+    only_watch: true
+    min_interval_seconds: 3
+axiom_gate_preset:
+  min_liquidity_usd: 8000
+  min_volume_h24_usd: 500
+  min_trade_h24: 50
+  max_age_minutes: 180
+  max_top10_holder_pct: 35
+patterns:
+  windows_minutes:
+  - 1
+  - 5
+  - 15
+  rest_sample_size: 2000
+output:
+  decisions_csv: data/processed/decisions.csv
+  watchlist_csv: data/processed/watchlist.csv
+  append: true
+  flush_every_n: 1
+trading:
+  enabled: true
+  # SINGLE SWITCH:
+  # - true  => paper trading (realistic: build BUY tx, virtual positions, P&L via /quote, no on-chain sends)
+  # - false => live trading (executor sends BUY/SELL on-chain)
+  dry_run: true
+  chain: solana
+  venue: pumpfun
+  mode: filter
+  buy_on_decision: WATCH
+  executor_url: http://127.0.0.1:8787
+  buy_amount_sol: 0.02
+  take_profit_pct: 35
+  stop_loss_pct: 10
+  max_open_positions: 10
+  min_interval_per_mint_seconds: 90
+  min_interval_global_seconds: 0.25
+  spray_allow_reasons:
+  - no_pairs
+  slippage_bps: 1200
+  hold_seconds: 45
+  sell_mode: tp_sl_time
+  background_tick: true
+  tick_interval_seconds: 1.0
+runtime:
+  source: helius_dexscreener

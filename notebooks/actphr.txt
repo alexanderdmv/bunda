@@ -1,0 +1,65 @@
+python -m venv venv
+venv\Scripts\activate /активируем терминал
+
+pip install... /скачать библиотеки
+
+python main.py /активируем запуск
+
+jupyter notebook /активируем ноутбук(ноутбук не как устройство, а notebook) в браузере
+
+python -m pip install -r requirements.txt / установить библиотеки из этого файла
+
+python -m py_compile pipeline/adapters/dexscraper_adapter.py / проверка синтаксиса файла
+
+api_key: "PASTE_BIRDEYE_KEY_HERE"  (store in config/secrets.yaml or env BIRDEYE_API_KEY)
+
+python -m tools.patterns_50k --save / сохранить после фильтра
+
+npm install - установка библиотек(package.json)
+npm audit - проверка библиотек
+
+netstat -ano | findstr :8787 - проверка что порт локальный
+
+irm http://127.0.0.1:8787/health - проверка health 
+
+node .\gen_keypair.mjs - генерация кошелька
+
+Remove-Item -Recurse -Force node_modules - удалить node_modules
+Remove-Item -Force package-lock.json - удалить package-lock.json
+Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue - альтернатива
+Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue - альтернатива
+
+
+
+$body = @{
+  side="buy"
+  mint="FxeVbckaxupVcDGbM7q1K47Skr8Z9JY8NcdGQc6Lpump"
+  amount_in=0.01
+  slippage_bps=100
+  simulate=$false
+  dry_run=$true
+} | ConvertTo-Json
+
+irm http://127.0.0.1:8787/trade -Method Post -ContentType "application/json" -Body $body - симуляция покупки(в основе проекта)
+
+
+
+$body = @{
+  side="sell"
+  mint="FxeVbckaxupVcDGbM7q1K47Skr8Z9JY8NcdGQc6Lpump"
+  amount_in=0
+  slippage_bps=100
+  useJito=$true
+  dry_run=$true
+  simulate=$true
+} | ConvertTo-Json
+
+irm http://127.0.0.1:8787/trade -Method Post -ContentType "application/json" -Body $body - симуляция продажи(в основе проекта)
+
+
+
+irm "http://127.0.0.1:8787/quote?side=buy&mint=FxeVbckaxupVcDGbM7q1K47Skr8Z9JY8NcdGQc6Lpump&amount_in=0.01&slippage_bps=100" - Quote BUY
+irm "http://127.0.0.1:8787/quote?side=sell&mint=FxeVbckaxupVcDGbM7q1K47Skr8Z9JY8NcdGQc6Lpump&amount_in=0&slippage_bps=100" - Quote SELL
+
+python tools\anamnesis.py --mints CDDDf9fnqMnbi4PFvv74RdpfYSSugFtkpTHeiLGRpump
+

@@ -1,0 +1,44 @@
+crypto_filter/
+│
+├── data/
+│   ├── raw/
+│   ├── processed/
+│   └── features/
+│
+├── models/
+│   ├── tabular/
+│   ├── text/
+│   └── final/
+│
+├── pipeline/
+│   ├── adapters/
+│   │   └── axiom_adapter.py
+│   │
+│   ├── ingestion.py
+│   ├── preprocessing.py
+│   ├── feature_eng.py
+│   ├── labeling.py
+│   ├── training.py
+│   │
+│   ├── decision/
+│   │   ├── filter.py
+│   │   └── rules.py
+│
+├── evaluation/
+│   ├── backtest.py
+│   └── metrics.py
+│
+├── config/
+│   └── config.yaml
+│
+├── utils/
+│   ├── logger.py
+│   ├── timers.py
+│   └── validators.py
+│
+├── logs/
+│   └── pipeline.log
+│
+├── notebooks/
+│
+└── main.py

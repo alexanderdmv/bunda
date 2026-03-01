@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environments
+venv/
+.venv/
+
+# Logs (keep folder)
+logs/*
+!logs/.gitkeep
+
+# Data / outputs (keep folders)
+data/processed/*
+!data/processed/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+
+# Tracker / local state
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+config/secrets.yaml
+.env
+.env.*
+
+# Notebooks
+.ipynb_checkpoints/
