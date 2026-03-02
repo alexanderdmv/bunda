@@ -48,8 +48,10 @@ def main_menu(manager: LaunchManager):
         elif choice == "4":
             sell_menu(manager)
         elif choice == "5":
-            console.print("[yellow]Volume Maker пока в разработке[/yellow]")
-            Prompt.ask("Press Enter...")
+            minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
+            trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
+            manager.start_volume_maker(minutes, trade_sol)
+            Prompt.ask("\nPress Enter to continue...")
         elif choice == "6":
             manager.status()
             Prompt.ask("Press Enter...")

@@ -1,5 +1,6 @@
 import json
 import time
+import random
 from pathlib import Path
 from typing import List, Dict
 
@@ -54,7 +55,7 @@ class LaunchManager:
         WALLETS_PATH.parent.mkdir(exist_ok=True)
         WALLETS_PATH.write_text(json.dumps(self.wallets, indent=2, ensure_ascii=False))
 
-    # 1. Generate Wallets
+    # ====================== GENERATE ======================
     def generate_wallets(self, num: int = 15, force: bool = False):
         if self.wallets and not force:
             logger.warning("Уже есть кошельки. Используй --force")
@@ -72,7 +73,7 @@ class LaunchManager:
         self._save_wallets()
         logger.success(f"✅ {num} кошельков сохранены")
 
-    # 2. Fund All Wallets (реальная отправка)
+    # ====================== FUND ALL ======================
     def fund_all(self, sol_amount: float):
         if not self.main_kp:
             console.print("[red]Главный ключ не найден![/red]")
@@ -102,16 +103,16 @@ class LaunchManager:
 
         console.print("[green]Фандинг завершён[/green]")
 
-    # 3. Real Balance
+    # ====================== BALANCES ======================
     def get_balances(self):
         console.print(Panel.fit("[bold cyan]Балансы кошельков[/bold cyan]", border_style="cyan"))
         for w in self.wallets:
-            console.print(f"  {w['pubkey'][:8]}... → [dim]Проверка баланса...[/dim]")
+            console.print(f"  {w['pubkey'][:8]}... → [dim]0.0000 SOL (реальный чек скоро)[/dim]")
 
-    # 4. Withdraw All
+    # ====================== WITHDRAW ======================
     def withdraw_all(self):
         console.print("[bold]Выводим всё на главный кошелёк...[/bold]")
-        console.print("[yellow]Withdraw All будет добавлен в следующем шаге[/yellow]")
+        console.print("[yellow]Withdraw All будет добавлен в следующем обновлении[/yellow]")
 
     # ====================== LAUNCH ======================
     def launch(self, name: str, symbol: str, description: str, image_path: Path, buy_sol_per_wallet: float = 0.03):
@@ -170,8 +171,43 @@ class LaunchManager:
                 else:
                     console.print(f"  → {w['pubkey'][:8]}... [red]ошибка[/red]")
             except:
-                console.print(f"  → {w['pubkey'][:8]}... [red]ошибка соединения[/red]")
+                console.print(f"  → {w['pubkey'][:8]}... [red]ошибка[/red]")
         console.print("[green]Sell All завершён[/green]")
+
+    # ====================== VOLUME MAKER ======================
+    def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01):
+        if not self.wallets:
+            logger.error("Нет кошельков")
+            return
+
+        logger.info(f"🚀 Volume Maker запущен на {minutes} минут ({trade_sol} SOL за трейд)")
+        end_time = time.time() + minutes * 60
+        cycle = 0
+
+        while time.time() < end_time:
+            cycle += 1
+            logger.info(f"Цикл {cycle}...")
+
+            for w in self.wallets:
+                side = random.choice(["buy", "sell"])
+                try:
+                    payload = {
+                        "side": side,
+                        "mint": "SIMULATED_VOLUME_MINT",
+                        "amount_in": trade_sol if side == "buy" else "all",
+                        "dry_run": False
+                    }
+                    r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
+                    status = "[green]OK[/green]" if r.status_code == 200 else "[red]ошибка[/red]"
+                    console.print(f"  {w['pubkey'][:6]}... {side.upper()} {status}")
+                except:
+                    console.print(f"  {w['pubkey'][:6]}... [red]таймаут[/red]")
+
+                time.sleep(random.uniform(1.2, 3.8))
+
+            time.sleep(random.uniform(10, 20))
+
+        logger.success(f"Volume Maker завершён после {minutes} минут")
 
     def status(self):
         console.print(f"[bold]Кошельков:[/bold] {len(self.wallets)}")
