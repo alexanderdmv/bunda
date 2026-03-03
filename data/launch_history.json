@@ -12,5 +12,76 @@
     "symbol": "DW",
     "mint": "DRY_RUN_MINT_1772554860378",
     "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 20:49:40",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772567380099",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 20:51:24",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772567484057",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 20:59:11",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772567951118",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:04:23",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772568263491",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:13:32",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772568812607",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:19:07",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772569147408",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:19:33",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772569173023",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:45:56",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772570756984",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 21:51:03",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772571063399",
+    "buy_per_wallet": 0.03
+  },
+  {
+    "timestamp": "2026-03-03 22:04:03",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "DRY_RUN_MINT_1772571843022",
+    "anti_level": "medium",
+    "buy_per_wallet_base": 0.03
   }
 ]

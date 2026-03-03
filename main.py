@@ -1,4 +1,6 @@
 import argparse
+import threading
+
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
@@ -29,7 +31,10 @@ def main_menu(manager: LaunchManager):
         rprint("2. [green]Wallet Management[/green]")
         rprint("3. [yellow]Launch Manager[/yellow]")
         rprint("4. [magenta]Sell Menu[/magenta]")
-        rprint("5. [cyan]Volume Maker[/cyan]")
+        if manager.volume_running:
+            rprint("5. [cyan]📊 Volume Status (running)[/cyan]")
+        else:
+            rprint("5. [cyan]Start Volume Maker[/cyan]")
         rprint("6. [white]History of Launches[/white]")
         rprint("7. [white]Status & Info[/white]")
         rprint("8. [red]Exit[/red]")
@@ -49,10 +54,31 @@ def main_menu(manager: LaunchManager):
         elif choice == "4":
             sell_menu(manager)
         elif choice == "5":
-            minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
-            trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
-            manager.start_volume_maker(minutes, trade_sol)
-            Prompt.ask("\nPress Enter to continue...")
+            if manager.volume_running:
+                # Показываем красивый дашборд
+                manager.show_volume_status()
+                
+                # Даём остановить
+                action = Prompt.ask("Выберите действие", choices=["6", "back"], default="back")
+                if action == "6":
+                    manager.stop_volume_maker()
+            else:
+                # Запуск Volume Maker
+                minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
+                trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
+
+                manager.volume_running = True
+
+                def volume_wrapper():
+                    try:
+                        manager.start_volume_maker(minutes, trade_sol)
+                    finally:
+                        manager.volume_running = False
+
+                manager.volume_thread = threading.Thread(target=volume_wrapper, daemon=True)
+                manager.volume_thread.start()
+                console.print("[green]✅ Volume Maker запущен в фоне[/green]")
+                Prompt.ask("\nPress Enter to continue...")
         elif choice == "6":
             manager.show_launch_history()
             Prompt.ask("\nPress Enter to continue...")    
@@ -118,8 +144,13 @@ def launch_menu(manager: LaunchManager):
             image = Prompt.ask("Image path", default=r"D:\Aladdin\memes\dean-winchester.jpeg")
             buy = float(Prompt.ask("Buy per wallet (SOL)", default="0.03"))
 
+            anti_level = Prompt.ask(
+                "Anti-detect level",
+                choices=["low", "medium", "high"],
+                default="medium"
+            )
+
             manager.launch(name, symbol, desc, Path(image), buy)
-            Prompt.ask("\nPress Enter...")
 
         elif choice == "2":
             break
@@ -148,21 +179,23 @@ def sell_menu(manager: LaunchManager):
         if choice == "1":
             mint = Prompt.ask("Mint address")
             manager.sell_all(mint)
-        if choice == "4":
+
+        elif choice in ["2", "3"]:
+            console.print("[yellow]Эта функция скоро будет добавлена[/yellow]")
+
+        elif choice == "4":
             mint = Prompt.ask("Mint токена")
             tp = float(Prompt.ask("TP % (50, 100, 200...)", default="100"))
             trailing = float(Prompt.ask("Trailing Stop %", default="30"))
-            manager.auto_sell_tp(mint, tp, trailing if trailing else 0)    
+            manager.auto_sell_tp(mint, tp, trailing if trailing else 0)
+
         elif choice == "5" and manager.auto_sell_running:
             manager.stop_auto_sell()
 
         elif (choice == "5" and not manager.auto_sell_running) or choice == "6":
             break
 
-        else:
-            console.print("[yellow]Эта функция скоро будет добавлена[/yellow]") 
-
-        Prompt.ask("\nPress Enter...")
+        Prompt.ask("\nPress Enter to continue...")
 
 def main():
     manager = LaunchManager()

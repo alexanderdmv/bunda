@@ -36,6 +36,13 @@ class LaunchManager:
         self.auto_sell_thread = None        
         self.tp_percent = None
         self.trailing_percent = None
+        self.launch_running = False
+        self.volume_running = False
+        self.launch_thread = None
+        self.volume_thread = None
+        self.volume_logs: List[str] = []
+        self.volume_start_time = None
+        self.volume_minutes = 0
 
     def _load_main_keypair(self):
         paths = [
@@ -224,16 +231,50 @@ class LaunchManager:
         console.print("[green]✅ Продвинутый Warmup 3.0 успешно завершён![/green]")
         console.print("[yellow]Кошельки теперь значительно живее для фильтров.[/yellow]")
 
-    # ====================== LAUNCH ======================
-    def launch(self, name: str, symbol: str, description: str, image_path: Path, buy_sol_per_wallet: float = 0.03):
+    # ====================== LAUNCH WITH ANTI-DETECT ======================
+    def launch(self, name: str, symbol: str, description: str, image_path: Path, 
+               buy_sol_per_wallet: float = 0.03, anti_level: str = "medium"):
+        
         if not self.wallets:
             self.generate_wallets(15)
 
-        total = 0.025 + (buy_sol_per_wallet * len(self.wallets)) + 0.003
+        # === АНТИ-ДЕТЕКТ ===
+        wallets_to_use = self.wallets.copy()
+        buy_amounts = []
+        jito_tips = []
+
+        if anti_level == "low":
+            # минимальная рандомизация
+            random.shuffle(wallets_to_use)
+            for _ in wallets_to_use:
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.94, 1.07), 5))
+                jito_tips.append(round(random.uniform(0.0008, 0.0018), 6))
+
+        elif anti_level == "medium":
+            random.shuffle(wallets_to_use)
+            for _ in wallets_to_use:
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.87, 1.16), 5))
+                jito_tips.append(round(random.uniform(0.0005, 0.0025), 6))
+
+        else:  # high
+            random.shuffle(wallets_to_use)
+            for _ in wallets_to_use:
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.78, 1.24), 5))
+                jito_tips.append(round(random.uniform(0.0004, 0.0035), 6))
+
+        console.print(Panel.fit(
+            f"[bold]Анти-детект уровень:[/bold] [cyan]{anti_level.upper()}[/cyan]\n"
+            f"Кошельки перемешаны: [green]Да[/green]\n"
+            f"Разброс сумм: ±{abs(100 - int(sum(buy_amounts)/len(buy_amounts)/buy_sol_per_wallet*100))}%",
+            title="🛡️ ANTI-DETECT",
+            border_style="blue"
+        ))
+
+        total = 0.025 + sum(buy_amounts) + sum(jito_tips)
         console.print(Panel.fit(
             f"Создание токена:     0.025 SOL\n"
-            f"Покупки:             {buy_sol_per_wallet*len(self.wallets):.3f} SOL\n"
-            f"Jito tip:            0.003 SOL\n"
+            f"Покупки (с jitter):  {sum(buy_amounts):.3f} SOL\n"
+            f"Jito tips (разные):  {sum(jito_tips):.4f} SOL\n"
             f"[bold yellow]Итого ≈ {total:.3f} SOL[/bold yellow]",
             title="Расчёт расходов",
             border_style="yellow"
@@ -247,8 +288,9 @@ class LaunchManager:
             "symbol": symbol,
             "description": description,
             "image_path": str(image_path.absolute()),
-            "buy_sol_per_wallet": buy_sol_per_wallet,
-            "wallets": self.wallets,
+            "wallets": wallets_to_use,
+            "buy_amounts": buy_amounts,        # новое поле — индивидуальные суммы
+            "jito_tips": jito_tips,            # новое поле
             "dry_run": self.control.get("trading", {}).get("dry_run", True)
         }
 
@@ -257,7 +299,7 @@ class LaunchManager:
             if r.status_code == 200:
                 data = r.json()
                 mint = data.get('mint')
-                logger.success("✅ Bundle отправлен!")
+                logger.success("✅ Bundle отправлен с анти-детектом!")
                 logger.info(f"Mint: {mint}")
                 logger.info(f"Bundle: {data.get('bundle_sig')}")
 
@@ -268,13 +310,24 @@ class LaunchManager:
                     "name": name,
                     "symbol": symbol,
                     "mint": mint,
-                    "buy_per_wallet": buy_sol_per_wallet
+                    "anti_level": anti_level,
+                    "buy_per_wallet_base": buy_sol_per_wallet
                 }
                 self._save_launch_history(history_entry)
+
+                # Автозапуск Volume Maker
                 if Prompt.ask("\nЗапустить Volume Maker сразу с этим mint’ом? (y/n)", choices=["y", "n"], default="y") == "y":
                     minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
                     trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
-                    self.start_volume_maker(minutes, trade_sol)
+                    self.volume_running = True
+                    def volume_wrapper():
+                        try:
+                            self.start_volume_maker(minutes, trade_sol, mint=mint)
+                        finally:
+                            self.volume_running = False
+                    self.volume_thread = threading.Thread(target=volume_wrapper, daemon=True)
+                    self.volume_thread.start()
+                    console.print("[green]✅ Volume Maker запущен в фоне[/green]")
             else:
                 logger.error(f"Ошибка: {r.text}")
         except Exception as e:
@@ -282,6 +335,7 @@ class LaunchManager:
 
     # ====================== SELL ALL ======================
     def sell_all(self, mint: str):
+        self.emergency_stop()
         console.print(f"[bold magenta]Продаём ВСЕ токены {mint}...[/bold magenta]")
         for w in self.wallets:
             try:
@@ -384,25 +438,37 @@ class LaunchManager:
         else:
             console.print("[dim]Auto Sell не был запущен[/dim]")
     # ====================== VOLUME MAKER ======================
-    def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01):
+    def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01, mint: str = None):
         if not self.wallets:
             logger.error("Нет кошельков")
             return
 
-        last_mint = self._load_last_mint()
-        if last_mint:
-            use_last = Prompt.ask(f"Использовать последний mint {last_mint[:8]}...? (y/n)", choices=["y","n"], default="y")
-            mint = last_mint if use_last == "y" else Prompt.ask("Введи mint токена")
-        else:
-            mint = Prompt.ask("Введи mint токена")
+        # Определяем mint (автозапуск после лаунча или ручной)
+        if mint is None:
+            last_mint = self._load_last_mint()
+            if last_mint:
+                use_last = Prompt.ask(f"Использовать последний mint {last_mint[:8]}...? (y/n)", choices=["y","n"], default="y")
+                mint = last_mint if use_last == "y" else Prompt.ask("Введи mint токена")
+            else:
+                mint = Prompt.ask("Введи mint токена")
+
+        self.volume_minutes = minutes
+        self.volume_start_time = time.time()
+        self.volume_logs.clear()
 
         logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
         end_time = time.time() + minutes * 60
         cycle = 0
 
         while time.time() < end_time:
+            if not self.volume_running:
+                self.volume_logs.append("Volume Maker остановлен по запросу")
+                break
+
             cycle += 1
-            logger.info(f"Цикл {cycle}...")
+            self.volume_logs.append(f"[{time.strftime('%H:%M:%S')}] Цикл {cycle}")
+            if len(self.volume_logs) > 15:
+                self.volume_logs.pop(0)
 
             for w in self.wallets:
                 side = random.choice(["buy", "sell"])
@@ -414,10 +480,13 @@ class LaunchManager:
                         "dry_run": False
                     }
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
-                    status = "[green]OK[/green]" if r.status_code == 200 else "[red]ошибка[/red]"
-                    console.print(f"  {w['pubkey'][:6]}... {side.upper()} {status}")
+                    status = "OK" if r.status_code == 200 else "ошибка"
+                    log = f"  {w['pubkey'][:6]}... {side.upper()} {status}"
+                    self.volume_logs.append(log)
+                    if len(self.volume_logs) > 15:
+                        self.volume_logs.pop(0)
                 except:
-                    console.print(f"  {w['pubkey'][:6]}... [red]таймаут[/red]")
+                    self.volume_logs.append(f"  {w['pubkey'][:6]}... таймаут")
 
                 time.sleep(random.uniform(1.5, 4.0))
 
@@ -438,6 +507,76 @@ class LaunchManager:
         console.print(Panel.fit("[bold]Последние запуски[/bold]", border_style="blue"))
         for entry in reversed(history[-10:]):
             console.print(f"[{entry['timestamp']}] {entry['name']} ({entry['symbol']}) → {entry.get('mint', 'N/A')[:8]}...")
+    # ====================== EMERGENCY STOP (Dump All) ======================
+    def emergency_stop(self):
+        """Останавливает ВСЁ при нажатии Dump All"""
+        stopped = False
+
+        if self.auto_sell_running:
+            self.stop_auto_sell()
+            stopped = True
+
+        if self.volume_running:
+            self.stop_volume_maker()
+            stopped = True
+
+        if self.launch_running:
+            self.stop_launch()
+            stopped = True
+
+        if stopped:
+            console.print("[red bold]🚨 EMERGENCY STOP: все процессы остановлены[/red bold]")
+        else:
+            console.print("[dim]Ничего не было запущено[/dim]")
+
+    # ====================== STOP LAUNCH ======================
+    def stop_launch(self):
+        if self.launch_running:
+            self.launch_running = False
+            console.print("[yellow]🛑 Launch остановлен[/yellow]")
+            if self.launch_thread and self.launch_thread.is_alive():
+                self.launch_thread.join(timeout=3.0)
+            logger.success("✅ Launch полностью остановлен")
+        else:
+            console.print("[dim]Launch не запущен[/dim]")
+
+    # ====================== STOP VOLUME ======================
+    def stop_volume_maker(self):
+        if self.volume_running:
+            self.volume_running = False
+            console.print("[yellow]🛑 Volume Maker остановлен пользователем[/yellow]")
+            if self.volume_thread and self.volume_thread.is_alive():
+                self.volume_thread.join(timeout=3.0)
+            self.volume_logs.clear()
+            self.volume_start_time = None
+            logger.success("✅ Volume Maker полностью остановлен")
+        else:
+            console.print("[dim]Volume Maker не запущен[/dim]")
+    # ====================== VOLUME STATUS DASHBOARD ======================
+    def show_volume_status(self):
+        if not self.volume_running or self.volume_start_time is None:
+            console.print("[yellow]Volume Maker сейчас не запущен[/yellow]")
+            return
+
+        elapsed = int(time.time() - self.volume_start_time)
+        remaining = max(0, self.volume_minutes * 60 - elapsed)
+        min_left = remaining // 60
+        sec_left = remaining % 60
+
+        console.print(Panel.fit(
+            f"[bold cyan]Volume Maker работает[/bold cyan]\n"
+            f"Прошло: [white]{elapsed//60}м {elapsed%60}с[/white]\n"
+            f"Осталось: [green]{min_left}м {sec_left}с[/green]\n"
+            f"Циклов: {len([l for l in self.volume_logs if 'Цикл' in l])}",
+            title="📊 VOLUME MAKER STATUS",
+            border_style="cyan"
+        ))
+
+        console.print("[bold]Последние действия:[/bold]")
+        for log in self.volume_logs[-12:]:
+            console.print(log)
+
+        console.print("\n[red bold]6. 🛑 Stop Volume Maker[/red bold]")        
 
 def main():
     pass
