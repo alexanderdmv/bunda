@@ -7,3 +7,9 @@ config/secrets.yaml
 .ipynb_checkpoints/
 id.json
 wallets.json
+
+logs/
+data/*.log
+notebooks/
+tools/
+*.pkl

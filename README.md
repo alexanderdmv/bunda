@@ -1,106 +1,129 @@
-# Sniper v4 (Pump.fun + TS Executor + Jito bundles)
+# 🚀 Pump.fun Bundle Bot
 
-This project is split into two parts:
+**Мощный и удобный бандл-бот для запуска своих токенов на Pump.fun с анти-детектом.**
 
-1) **Python** (`main.py`) — discovery + filtering + position logic (spray / filter modes)
-2) **TypeScript executor** (`executor_ts`) — builds and (optionally) sends **Pump.fun buy/sell** transactions (supports **Jito bundles**)
+Создавай токены, делай умные покупки бандлом (до 50+ кошельков), запускай Volume Maker и автоматически продавай по TP/Trailing Stop.
 
-You normally run **two terminals** (one for TS executor, one for Python).
+---
 
-## 0) What’s new vs v2
+## ✨ Основные возможности
 
-- ✅ **Real Pump.fun state** in Python via executor `GET /state` (fixes `curve_sol_missing`)
-- ✅ Executor supports **buy/sell** with `@pump-fun/pump-sdk` and Jito bundles
-- ✅ Two operating modes:
-  - **spray**: trade on very early mints (even `no_pairs`) with minimal gating
-  - **filter**: only trade when your filters return WATCH
-- ✅ Optional TP/SL logic using executor `GET /quote` (sell-all estimate)
+- **Генерация и управление кошельками** (создание, фандинг, вывод, прогрев)
+- **Launch токенов** с мощным **анти-детектом** (3 уровня: Low / Medium / High)
+- **Volume Maker** — автоматический объём в фоне
+- **Auto Sell** с Take Profit + Trailing Stop
+- **Emergency Stop** — одна кнопка `Dump All` останавливает всё
+- **Красивый дашборд** Volume Maker в реальном времени
+- Полностью работает через локальный **TypeScript Executor** + Jito Bundles
 
-## 1) Python setup
+---
 
-```powershell
+## 📋 Требования
+
+| Технология       | Минимальная версия     | Рекомендуемая версия |
+|------------------|------------------------|----------------------|
+| **Python**       | 3.10                   | **3.11 или 3.12**    |
+| **Node.js**      | 18                     | **20 или 22**        |
+| **Git**          | —                      | последняя            |
+
+**Важно:** Windows 10/11 рекомендуется (тестировалось на Windows 11).
+
+---
+
+## 🚀 Быстрый старт (для новичков)
+
+### 1. Клонируй репозиторий
+
+```bash
+git clone https://github.com/alexanderdmv/bunda.git
+cd bunda
+
+2. Настрой Python часть
+
+# Создаём виртуальное окружение
 python -m venv .venv
 .venv\Scripts\activate
+
+# Устанавливаем зависимости
 pip install -r requirements.txt
-```
 
-Create `config/secrets.yaml` (copy from example) and add **Helius API key**:
-
-- `config/secrets.example.yaml` → `config/secrets.yaml`
-
-Run:
-
-```powershell
-python main.py
-```
-
-## 2) Executor setup (TypeScript)
-
-Open a second terminal:
-
-```powershell
+3. Настрой Executor (TypeScript)
 cd executor_ts
 npm install
 cp .env.example .env
+cd ..
+
+4. Создай ключ кошелька
+cd executor_ts
+node gen_keypair.mjs
+cd ..
+
+5. Настрой конфиги
+config/secrets.yaml и вставь свои Helius API ключи.
+Открой config/control.yaml и убедись, что trading.dry_run: true (по умолчанию безопасно).
+
+6. Запуск
+Открой два терминала:
+Терминал 1 — Бот:
+python main.py
+Терминал 2 — Executor:
+cd executor_ts
 npm run dev
-```
 
-### Create the keypair file (`id.json`)
+🔐 Безопасность
+По умолчанию бот работает в сухом режиме (dry-run):
 
-In `executor_ts` you can generate it:
+Ничего не отправляется в блокчейн
+Все транзакции только симулируются
 
-```powershell
-node .\gen_keypair.mjs
-```
+Чтобы перейти на реальные деньги:
 
-It creates `../id.json` (project root) and prints the public key.
+В файле .env (в executor_ts/) поставь:
+EXECUTOR_DRY_RUN=false
+EXECUTOR_LIVE=true
 
-## 3) Safety (so you don’t accidentally spend)
+В config/control.yaml поставь:
+trading:
+  dry_run: false
+Рекомендация: начинай с сумм 0.005 – 0.015 SOL на кошелёк.
 
-**Default is safe**:
+📖 Как пользоваться
+Launch Pump (Bundler)
 
-- executor `.env`: `EXECUTOR_DRY_RUN=true` and `EXECUTOR_LIVE=false`
-- python `config/control.yaml`: `trading.dry_run=true`
+Пункт 3 → 1
+Введи имя, символ, описание, путь к картинке
+Выбери уровень анти-детекта (medium — оптимально для начала)
+Подтверди запуск
 
-To go live, you must explicitly do BOTH:
+Volume Maker
+Пункт 5 в главном меню
+При запущенном Volume Maker пункт меняется на 📊 Volume Status
 
-- executor: `EXECUTOR_DRY_RUN=false` **and** `EXECUTOR_LIVE=true`
-- python: `trading.dry_run=false`
+Auto Sell (TP + Trailing)
+Пункт 4 (Sell Menu) → 4
+Введи mint токена, TP% и Trailing %
 
-Then restart the executor.
+Экстренная остановка
+Sell Menu → 1. Dump All — останавливает всё и продаёт токены
 
-## 4) How the bot decides to trade
+🛠 Анти-детект уровни
+| Уровень       | Разброс сумм | Разброс Jito tips    | Задержки | Рекомендация            |
+|---------------|--------------|----------------------|----------|-------------------------| 
+| Low           | ±7%          | маленький            | нет      | Тестирование            |
+|---------------|--------------|----------------------|----------|-------------------------|
+| Medium        | ±16%         | средний              | есть     | Основной                |
+|---------------|--------------|----------------------|----------|-------------------------|
+| High          | ±24%         | большой              | есть     | Максимальная скрытность |
+|---------------|--------------|----------------------|----------|-------------------------|
 
-### Filter pipeline (Python)
+Структура проекта
+bunda/
+├── main.py                    ← Главный интерфейс
+├── pipeline/launch_manager.py ← Вся логика бандлов и volume
+├── executor_ts/               ← TypeScript сервер (Jito + Pump SDK)
+├── config/
+│   ├── control.yaml           ← Основные настройки
+│   └── secrets.yaml           ← API-ключи (не коммитить!)
+├── data/                      ← Кошельки, история, логи
+└── logs/
 
-`main.py` discovers new Pump.fun mints via Helius and builds a token feature dict.
-Then:
-
-1) **Enrichment**: calls executor `GET /state?mint=...` and fills:
-   - `pump_curve_real_sol_reserves` (+ lamports)
-2) **Decision**: applies rules from `config/control.yaml`:
-   - `WATCH` / `SKIP` (+ reason)
-3) **Trading hook** (if enabled):
-   - **spray mode**: can buy even when decision is `PENDING(no_pairs)` or `SKIP(liq_lt_min)` etc (config allow-list)
-   - **filter mode**: buys only on `WATCH`
-4) **Exit**:
-   - time-based (`hold_seconds`)
-   - optional TP/SL using `GET /quote` (sell-all estimate)
-
-### Important knobs (`config/control.yaml`)
-
-- `trading.mode`: `spray` or `filter`
-- `filter.layers.runner_gate.min_bonding_curve_real_sol`: minimal Pump.fun “real SOL” in curve
-- `trading.buy_amount_sol`: SOL per entry
-- `trading.hold_seconds`: time to hold before sell
-- `trading.take_profit_pct` / `trading.stop_loss_pct` and `trading.sell_mode: tp_sl_time`
-
-## Windows firewall popup (Node)
-
-When you start the executor, Windows may ask to allow Node.js networking.
-Because the executor binds to `127.0.0.1` (localhost), it’s safe to:
-
-- ✅ allow on **Private networks**
-- ❌ keep blocked on **Public networks**
-
-The Python bot talks to it locally.

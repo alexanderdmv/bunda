@@ -1320,3 +1320,7 @@
 2026-03-04T00:01:59.971662+0100 | INFO | 🚀 Volume Maker запущен на 30 минут по токену DRY_RUN_...
 2026-03-04T00:02:24.414472+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
 2026-03-04T00:02:33.371024+0100 | SUCCESS | Volume Maker завершён
+2026-03-04T01:14:59.023924+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-04T01:15:11.253403+0100 | INFO | 🚀 Volume Maker запущен на 30 минут по токену DRY_RUN_...
+2026-03-04T01:15:35.005923+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-04T01:15:37.721710+0100 | SUCCESS | Volume Maker завершён

@@ -244,28 +244,34 @@ class LaunchManager:
         jito_tips = []
 
         if anti_level == "low":
-            # минимальная рандомизация
             random.shuffle(wallets_to_use)
+            deviation = 0.07
             for _ in wallets_to_use:
-                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.94, 1.07), 5))
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(1 - deviation, 1 + deviation), 5))
                 jito_tips.append(round(random.uniform(0.0008, 0.0018), 6))
 
         elif anti_level == "medium":
             random.shuffle(wallets_to_use)
+            deviation = 0.16
             for _ in wallets_to_use:
-                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.87, 1.16), 5))
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(1 - deviation, 1 + deviation), 5))
                 jito_tips.append(round(random.uniform(0.0005, 0.0025), 6))
 
         else:  # high
             random.shuffle(wallets_to_use)
+            deviation = 0.24
             for _ in wallets_to_use:
-                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(0.78, 1.24), 5))
+                buy_amounts.append(round(buy_sol_per_wallet * random.uniform(1 - deviation, 1 + deviation), 5))
                 jito_tips.append(round(random.uniform(0.0004, 0.0035), 6))
+
+        avg_buy = sum(buy_amounts) / len(buy_amounts)
+        real_spread = round(abs((avg_buy / buy_sol_per_wallet) - 1) * 100)
 
         console.print(Panel.fit(
             f"[bold]Анти-детект уровень:[/bold] [cyan]{anti_level.upper()}[/cyan]\n"
             f"Кошельки перемешаны: [green]Да[/green]\n"
-            f"Разброс сумм: ±{abs(100 - int(sum(buy_amounts)/len(buy_amounts)/buy_sol_per_wallet*100))}%",
+            f"Разброс сумм покупки: [yellow]±{real_spread}%[/yellow]\n"
+            f"Jito tips: разные (от {min(jito_tips):.5f} до {max(jito_tips):.5f} SOL)",
             title="🛡️ ANTI-DETECT",
             border_style="blue"
         ))
@@ -452,6 +458,7 @@ class LaunchManager:
             else:
                 mint = Prompt.ask("Введи mint токена")
 
+        self.volume_running = True
         self.volume_minutes = minutes
         self.volume_start_time = time.time()
         self.volume_logs.clear()
@@ -462,7 +469,7 @@ class LaunchManager:
 
         while time.time() < end_time:
             if not self.volume_running:
-                self.volume_logs.append("Volume Maker остановлен по запросу")
+                self.volume_logs.append(f"[{time.strftime('%H:%M:%S')}] 🛑 Volume Maker остановлен по запросу")
                 break
 
             cycle += 1
@@ -492,6 +499,8 @@ class LaunchManager:
 
             time.sleep(random.uniform(8, 18))
 
+        self.volume_running = False
+        self.volume_start_time = None
         logger.success(f"Volume Maker завершён")
 
     def status(self):
@@ -545,10 +554,15 @@ class LaunchManager:
         if self.volume_running:
             self.volume_running = False
             console.print("[yellow]🛑 Volume Maker остановлен пользователем[/yellow]")
+            
             if self.volume_thread and self.volume_thread.is_alive():
                 self.volume_thread.join(timeout=3.0)
+            
+            # Полная очистка логов
             self.volume_logs.clear()
             self.volume_start_time = None
+            self.volume_minutes = 0
+            
             logger.success("✅ Volume Maker полностью остановлен")
         else:
             console.print("[dim]Volume Maker не запущен[/dim]")
@@ -576,7 +590,8 @@ class LaunchManager:
         for log in self.volume_logs[-12:]:
             console.print(log)
 
-        console.print("\n[red bold]6. 🛑 Stop Volume Maker[/red bold]")        
+        console.print("\n[red bold]6. 🛑 Stop Volume Maker[/red bold]")
+        console.print("[dim]Нажми 6 или back для возврата[/dim]")        
 
 def main():
     pass

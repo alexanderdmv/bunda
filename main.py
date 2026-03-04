@@ -55,15 +55,19 @@ def main_menu(manager: LaunchManager):
             sell_menu(manager)
         elif choice == "5":
             if manager.volume_running:
-                # Показываем красивый дашборд
                 manager.show_volume_status()
                 
-                # Даём остановить
-                action = Prompt.ask("Выберите действие", choices=["6", "back"], default="back")
+                # Правильная обработка выбора
+                action = Prompt.ask(
+                    "Выберите действие", 
+                    choices=["6", "back"], 
+                    default="back",
+                    show_choices=False
+                )
                 if action == "6":
                     manager.stop_volume_maker()
+                    Prompt.ask("\nPress Enter to continue...")
             else:
-                # Запуск Volume Maker
                 minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
                 trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
 
