@@ -100,32 +100,35 @@ def wallet_menu(manager: LaunchManager):
         console.print(Panel.fit("[bold green]Wallet Management[/bold green]", border_style="green"))
 
         rprint("1. Fund Wallets")
-        rprint("2. Balance")
-        rprint("3. Transfer Tokens")
-        rprint("4. Refund SOL")
-        rprint("5. Wallet Warmup")
-        rprint("6. Wallet Cleanup")
-        rprint("7. Back to Main Menu")
+        rprint("2. [cyan]Main Wallet Status[/cyan]")
+        rprint("3. Generated Wallets Balance")
+        rprint("4. Transfer Tokens")
+        rprint("5. Refund SOL")
+        rprint("6. Wallet Warmup")
+        rprint("7. Wallet Cleanup")
+        rprint("8. Back to Main Menu")
 
-        choice = Prompt.ask("Choose", choices=["1","2","3","4","5","6","7"])
+        choice = Prompt.ask("Choose", choices=["1","2","3","4","5","6","7","8"])
 
         if choice == "1":
             amount = float(Prompt.ask("SOL per wallet", default="0.5"))
             manager.fund_all(amount)
-        elif choice == "2":
+        elif choice == "2":                                   
+            manager.get_main_wallet_status()    
+        elif choice == "3":
             manager.get_balances()
-        elif choice == "4":
-            manager.withdraw_all()
         elif choice == "5":
+            manager.withdraw_all()
+        elif choice == "6":
             cycles = int(Prompt.ask("Сколько циклов прогрева?", default="4"))
             amount = float(Prompt.ask("Макс. сумма за трансфер (SOL)", default="0.008"))
             manager.wallet_warmup(cycles, amount)    
-        elif choice == "6":
+        elif choice == "7":
             if Prompt.ask("Удалить все кошельки? (y/n)", choices=["y","n"]) == "y":
                 Path("data/wallets.json").unlink(missing_ok=True)
                 manager.wallets.clear()
                 console.print("[green]Кошельки очищены![/green]")
-        elif choice == "7":
+        elif choice == "8":
             break
 
         Prompt.ask("\nPress Enter to continue...")

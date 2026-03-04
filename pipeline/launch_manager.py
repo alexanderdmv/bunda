@@ -43,6 +43,7 @@ class LaunchManager:
         self.volume_logs: List[str] = []
         self.volume_start_time = None
         self.volume_minutes = 0
+        self.wallet_positions = {}
 
     def _load_main_keypair(self):
         paths = [
@@ -449,7 +450,7 @@ class LaunchManager:
             logger.error("Нет кошельков")
             return
 
-        # Определяем mint (автозапуск после лаунча или ручной)
+        # Определяем mint
         if mint is None:
             last_mint = self._load_last_mint()
             if last_mint:
@@ -458,12 +459,17 @@ class LaunchManager:
             else:
                 mint = Prompt.ask("Введи mint токена")
 
+        # Инициализируем позиции (если первый запуск)
+        if not self.wallet_positions:
+            for w in self.wallets:
+                self.wallet_positions[w["pubkey"]] = 0.0
+
         self.volume_running = True
-        self.volume_minutes = minutes
         self.volume_start_time = time.time()
+        self.volume_minutes = minutes
         self.volume_logs.clear()
 
-        logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
+        logger.info(f"🚀 Умный Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
         end_time = time.time() + minutes * 60
         cycle = 0
 
@@ -477,23 +483,45 @@ class LaunchManager:
             if len(self.volume_logs) > 15:
                 self.volume_logs.pop(0)
 
+            # Умная логика для каждого кошелька
             for w in self.wallets:
-                side = random.choice(["buy", "sell"])
+                pubkey = w["pubkey"]
+                current_tokens = self.wallet_positions.get(pubkey, 0.0)
+
+                # Определяем, что делать
+                if current_tokens < 0.3:           # мало токенов → покупаем
+                    side = "buy"
+                    amount = trade_sol
+                elif current_tokens > 0.7:         # много токенов → продаём часть
+                    side = "sell"
+                    amount = "all"                 # продаём всё, но потом сразу докупим в следующем цикле
+                else:
+                    side = random.choice(["buy", "sell"])
+                    amount = trade_sol if side == "buy" else "all"
+
                 try:
                     payload = {
                         "side": side,
                         "mint": mint,
-                        "amount_in": trade_sol if side == "buy" else "all",
+                        "amount_in": amount,
                         "dry_run": False
                     }
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
                     status = "OK" if r.status_code == 200 else "ошибка"
-                    log = f"  {w['pubkey'][:6]}... {side.upper()} {status}"
+
+                    # Обновляем позицию (примерно)
+                    if side == "buy":
+                        self.wallet_positions[pubkey] += 0.6   # условно +60% позиции
+                    else:
+                        self.wallet_positions[pubkey] = max(0.0, self.wallet_positions[pubkey] * 0.4)  # оставляем ~40%
+
+                    log = f"  {pubkey[:6]}... {side.upper()} {status}"
                     self.volume_logs.append(log)
                     if len(self.volume_logs) > 15:
                         self.volume_logs.pop(0)
+
                 except:
-                    self.volume_logs.append(f"  {w['pubkey'][:6]}... таймаут")
+                    self.volume_logs.append(f"  {pubkey[:6]}... таймаут")
 
                 time.sleep(random.uniform(1.5, 4.0))
 
@@ -501,7 +529,7 @@ class LaunchManager:
 
         self.volume_running = False
         self.volume_start_time = None
-        logger.success(f"Volume Maker завершён")
+        logger.success("✅ Умный Volume Maker завершён")
 
     def status(self):
         console.print(f"[bold]Кошельков:[/bold] {len(self.wallets)}")
@@ -591,7 +619,32 @@ class LaunchManager:
             console.print(log)
 
         console.print("\n[red bold]6. 🛑 Stop Volume Maker[/red bold]")
-        console.print("[dim]Нажми 6 или back для возврата[/dim]")        
+        console.print("[dim]Нажми 6 или back для возврата[/dim]")  
+    # ====================== MAIN WALLET STATUS ======================
+    def get_main_wallet_status(self):
+        if not self.main_kp:
+            console.print("[red]❌ Главный ключ не найден![/red]")
+            return
+
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getBalance",
+                "params": [str(self.main_kp.pubkey())]
+            }
+            r = requests.post(RPC_URL, json=payload, timeout=10)
+            sol = r.json()["result"]["value"] / 1_000_000_000
+
+            console.print(Panel.fit(
+                f"[bold cyan]Главный кошелёк (Main Wallet)[/bold cyan]\n"
+                f"Адрес: [white]{self.main_kp.pubkey()}[/white]\n"
+                f"Баланс: [bold green]{sol:.6f} SOL[/bold green]",
+                title="🔑 Main Wallet Status",
+                border_style="cyan"
+            ))
+        except Exception as e:
+            console.print(f"[red]Ошибка получения баланса: {e}[/red]")       
 
 def main():
     pass
