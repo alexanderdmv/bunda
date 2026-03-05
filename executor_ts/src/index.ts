@@ -8,6 +8,7 @@ import {
   PublicKey,
   Transaction,
   VersionedTransaction,
+  SystemProgram,
 } from "@solana/web3.js";
 
 import { OrderRequestSchema } from "./types.js";
@@ -24,6 +25,7 @@ import {
 
 import { createToken } from "./pumpfun.js";   // если нет — создадим ниже
 import bs58 from "bs58";
+
 
 dotenv.config();
 
@@ -345,7 +347,6 @@ app.get("/quote", async (req, res) => {
     return res.status(500).json({ ok: false, message: msg });
   }
 });
-
 app.post("/trade", async (req, res) => {
   try {
     const parsed = OrderRequestSchema.safeParse(req.body);
@@ -356,8 +357,26 @@ app.post("/trade", async (req, res) => {
     }
     const o = parsed.data;
 
-    const side = String((o as any).side ?? "").toLowerCase();
+    const side = (req.body.side ?? req.body.action) as "buy" | "sell" | "transfer";
+      const mintStr = req.body.mint;
+      const amountIn = req.body.amount_in ?? req.body.amount_sol;
+      const slippageBps = req.body.slippage_bps ?? 1500;
+      const toStr = req.body.to; 
 
+    if (side === "transfer") {
+      const toPubkey = new PublicKey(toStr);
+      const amountLamports = Math.floor(amountIn * 1e9);
+      const tx = await buildTransferTx(connection, payer, toPubkey, amountLamports);
+      const base64Tx = Buffer.from(tx.serialize()).toString("base64");
+
+      res.json({
+        ok: true,
+        dry_run: true,
+        tx_base64: base64Tx
+      });
+      return;
+    }
+  
     if (side !== "buy" && side !== "sell") {
       return res.status(400).json({ ok: false, dry_run: true, message: "side must be buy|sell" });
     }
@@ -465,6 +484,22 @@ app.listen(PORT, HOST, () => {
   console.log(`[executor] live enabled: ${LIVE_ENABLED}`);
   console.log(`[executor] jito enabled: ${JITO_ENABLED} (${JITO_BLOCK_ENGINE_URL})`);
 });
+// ====================== TRANSFER SOL ======================
+async function buildTransferTx(connection: Connection, payer: Keypair, to: PublicKey, amountLamports: number): Promise<Transaction> {
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
+      fromPubkey: payer.publicKey,
+      toPubkey: to,
+      lamports: amountLamports
+    })
+  );
+
+  const bh = await connection.getLatestBlockhash("confirmed");
+  tx.recentBlockhash = bh.blockhash;
+  tx.feePayer = payer.publicKey;
+  tx.sign(payer);
+  return tx;
+}
 // ====================== BUNDLE LAUNCH ENDPOINT (10-20 wallets) ======================
 app.post("/launch_bundle", async (req, res) => {
   try {

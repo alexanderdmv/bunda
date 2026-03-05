@@ -91,5 +91,13 @@
     "mint": "DRY_RUN_MINT_1772578914856",
     "anti_level": "high",
     "buy_per_wallet_base": 0.03
+  },
+  {
+    "timestamp": "2026-03-05 19:13:47",
+    "name": "dick",
+    "symbol": "dd",
+    "mint": "DRY_RUN_MINT_1772734427588",
+    "anti_level": "medium",
+    "buy_per_wallet_base": 0.03
   }
 ]

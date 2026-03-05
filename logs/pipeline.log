@@ -1332,3 +1332,16 @@
 2026-03-04T16:46:49.025917+0100 | INFO | 🚀 Умный Volume Maker запущен на 30 минут по токену DRY_RUN_...
 2026-03-04T16:52:45.724524+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-04T17:15:59.847579+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-05T17:14:50.128540+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-05T19:04:46.033064+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-05T19:09:30.367099+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-05T19:13:47.657340+0100 | SUCCESS | ✅ Bundle отправлен с анти-детектом!
+2026-03-05T19:13:47.673758+0100 | INFO | Mint: DRY_RUN_MINT_1772734427588
+2026-03-05T19:13:47.673758+0100 | INFO | Bundle: dry-run-ok
+2026-03-05T19:14:02.417319+0100 | INFO | 🚀 Умный Volume Maker запущен на 30 минут по токену DRY_RUN_...
+2026-03-05T19:14:33.628661+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-05T19:14:50.236263+0100 | SUCCESS | ✅ Умный Volume Maker завершён
+2026-03-05T19:26:18.565524+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-05T19:26:24.747685+0100 | INFO | Генерирую 6 кошельков...
+2026-03-05T19:26:24.752173+0100 | SUCCESS | ✅ 6 кошельков сохранены
+2026-03-05T19:34:24.329011+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH

@@ -114,21 +114,32 @@ class LaunchManager:
         if not self.main_kp:
             console.print("[red]Главный ключ не найден![/red]")
             return
+
         console.print(Panel.fit(
             f"[bold]Отправляем {sol_amount} SOL на каждый из {len(self.wallets)} кошельков[/bold]",
             title="Fund All Wallets",
             border_style="green"
         ))
+
         for w in self.wallets:
             try:
-                payload = {"side": "transfer", "to": w["pubkey"], "amount": sol_amount, "dry_run": False}
+                payload = {
+                    "side": "transfer",
+                    "to": w["pubkey"],
+                    "amount": sol_amount,
+                    "dry_run": False
+                }
                 r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=30)
+
                 if r.status_code == 200:
                     console.print(f"  → {w['pubkey'][:8]}... [green]OK[/green]")
                 else:
                     console.print(f"  → {w['pubkey'][:8]}... [red]ошибка[/red]")
-            except:
+                    console.print(f"     Ответ сервера: {r.text}")   # ←←← ЭТО НОВОЕ
+            except Exception as e:
                 console.print(f"  → {w['pubkey'][:8]}... [red]ошибка соединения[/red]")
+                console.print(f"     {e}")
+
         console.print("[green]Фандинг завершён[/green]")
 
     # ====================== BALANCES ======================

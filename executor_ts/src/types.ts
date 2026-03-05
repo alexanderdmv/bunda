@@ -5,7 +5,7 @@ export const OrderRequestSchema = z
     // New envelope
     chain: z.string().optional(),
     venue: z.string().optional(),
-    side: z.enum(["buy", "sell"]).optional(),
+    side: z.enum(["buy", "sell", "transfer"]).optional(),
     mint: z.string(),
     amount_in: z.number().nonnegative().optional(),
     slippage_bps: z.number().int().nonnegative().optional(),

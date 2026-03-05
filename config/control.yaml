@@ -184,7 +184,7 @@ trading:
   # SINGLE SWITCH:
   # - true  => paper trading (realistic: build BUY tx, virtual positions, P&L via /quote, no on-chain sends)
   # - false => live trading (executor sends BUY/SELL on-chain)
-  dry_run: true
+  dry_run: false
   chain: solana
   venue: pumpfun
   mode: filter
