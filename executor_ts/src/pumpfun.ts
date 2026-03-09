@@ -483,8 +483,9 @@ export async function buildBuyTx(
   const expectedTokens: BN = quoteFn({
     global,
     feeConfig,
+    mintSupply: bondingCurve.tokenTotalSupply,
     bondingCurve,
-    amount: asBN(solInLamports),  // Исправлено: amount = solInLamports
+    amount: asBN(solInLamports),
   });
 
   const base2 = getPumpBase();

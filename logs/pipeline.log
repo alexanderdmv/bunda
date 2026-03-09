@@ -1393,3 +1393,11 @@
 2026-03-09T15:41:13.978355+0100 | ERROR | Ошибка: {"ok":false,"error":"amount.eq is not a function"}
 2026-03-09T15:54:48.460701+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-09T15:55:16.314597+0100 | ERROR | Ошибка: {"ok":false,"error":"Cannot read properties of undefined (reading 'length')"}
+2026-03-09T16:11:48.373911+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-09T16:12:06.489220+0100 | ERROR | Ошибка: {"ok":false,"error":"Cannot read properties of undefined (reading 'length')"}
+2026-03-09T16:28:14.098354+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-09T16:28:25.625703+0100 | ERROR | Ошибка: {"ok":false,"error":"Cannot read properties of undefined (reading '_bn')"}
+2026-03-09T16:34:43.614482+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-09T16:35:30.051803+0100 | INFO | 🚀 Умный Volume Maker запущен на 10 минут по токену DRY_RUN_...
+2026-03-09T16:35:46.236512+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-09T16:44:50.662011+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
