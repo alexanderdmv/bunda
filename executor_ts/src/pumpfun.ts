@@ -446,7 +446,6 @@ export async function buildBuyTx(
 
   let global, feeConfig, st;
   if (isNewToken) {
-    // Для новых токенов пропускаем fetch состояния и используем начальные значения Pump.fun
     global = await fetchGlobal();
     feeConfig = await fetchFeeConfig();
     st = null;
@@ -467,8 +466,17 @@ export async function buildBuyTx(
       realSolReserves: asBN("0"),
       realTokenReserves: asBN("793100000000000"),      // 793.1e6 токенов * 1e6 = 7.931e14 u64
       tokenTotalSupply: asBN("1000000000000000"),      // 1e9 токенов * 1e6 = 1e15 u64
-      complete: false,
-      isMayhemMode: false,
+      complete: asBN(0),
+      isMayhemMode: asBN(0),
+    };
+  }
+
+  if (isNewToken && !feeConfig) {
+    feeConfig = {
+      tradeFeeBps: asBN(125),  // 1.25%
+      protocolFeeBps: asBN(95),  // 0.95%
+      creatorFeeBps: asBN(30),   // 0.3%
+      lpFeeBps: asBN(0),         // 0%
     };
   }
 
