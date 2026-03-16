@@ -65,5 +65,5 @@ python tools\anamnesis.py --mints CDDDf9fnqMnbi4PFvv74RdpfYSSugFtkpTHeiLGRpump
 
 ping mainnet.block-engine.jito.wtf  - узнаем пинг сервера
 
-node -e "console.log(crypto.randomUUID())" - сгенерировать JITO_UUID
+!node -e "console.log(crypto.randomUUID())" - сгенерировать JITO_UUID
 

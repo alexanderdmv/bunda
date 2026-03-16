@@ -21,7 +21,6 @@ def main_menu(manager: LaunchManager):
         clear()
         console.print(Panel.fit(
             "[bold cyan]SOLANA PUMP.FUN BUNDLE BOT[/bold cyan]\n"
-            "[white]by Grok + alexanderdmv[/white]",
             title="Main Menu",
             border_style="green"
         ))
@@ -39,7 +38,11 @@ def main_menu(manager: LaunchManager):
         rprint("7. [white]Status & Info[/white]")
         rprint("8. [red]Exit[/red]")
 
-        choice = Prompt.ask("Choose an option", choices=["1","2","3","4","5","6","7","8"])
+        try:
+            choice = Prompt.ask("Choose an option", choices=["1","2","3","4","5","6","7","8"])
+        except ValueError:
+            console.print("[red]Please select one of the available options[/red]")
+            continue
 
         if choice == "1":
             num = int(Prompt.ask("How many wallets?", default="15"))
@@ -66,22 +69,34 @@ def main_menu(manager: LaunchManager):
                 )
                 if action == "6":
                     manager.stop_volume_maker()
-                    Prompt.ask("\nPress Enter to continue...")
+                Prompt.ask("\nPress Enter to continue...")
             else:
                 minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
                 trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
 
+                last_mint = manager._load_last_mint()
+                use_last = Prompt.ask(f"Использовать последний mint {last_mint[:10]}...? (y/n)", default="y").lower() == "y"
+                
+                if not use_last:
+                    mint_str = Prompt.ask("Введите mint address")
+                    manager.mint = mint_str
+                else:
+                    manager.mint = last_mint
+
+                # Валидация mint
+                if not manager._is_valid_mint(manager.mint):
+                    console.print("[red]Invalid mint! Пожалуйста, введите реальный mint.[/red]")
+                    Prompt.ask("\nPress Enter to continue...")
+                    continue  # Не запускаем
+
+                manager._save_last_mint(manager.mint)
+
+                # Теперь запускаем thread
                 manager.volume_running = True
-
-                def volume_wrapper():
-                    try:
-                        manager.start_volume_maker(minutes, trade_sol)
-                    finally:
-                        manager.volume_running = False
-
-                manager.volume_thread = threading.Thread(target=volume_wrapper, daemon=True)
+                manager.volume_thread = threading.Thread(target=manager.start_volume_maker, args=(minutes, trade_sol, manager.mint), daemon=True)
                 manager.volume_thread.start()
-                console.print("[green]✅ Volume Maker запущен в фоне[/green]")
+
+                console.print(f"[green]✅ Volume Maker запущен на {minutes} минут по токену {manager.mint[:10]}...[/green]")
                 Prompt.ask("\nPress Enter to continue...")
         elif choice == "6":
             manager.show_launch_history()

@@ -17,6 +17,8 @@ from rich.prompt import Prompt
 from utils.logger import setup_logger
 from pipeline.control import load_control
 
+from solders.token.associated import get_associated_token_address
+
 console = Console()
 logger = setup_logger("INFO")
 
@@ -25,7 +27,7 @@ LAST_MINT_PATH = Path("data/last_mint.txt")
 HISTORY_PATH = Path("data/launch_history.json")
 
 EXECUTOR_URL = "http://127.0.0.1:8790"
-RPC_URL = "https://mainnet.helius-rpc.com/?api-key=fcf65e5f-636e-4800-ba08-33f6d536bace"
+RPC_URL = "https://mainnet.helius-rpc.com/?api-key=dfac7346-65d9-43df-bdc3-a76f424019c4"
 
 class LaunchManager:
     def __init__(self):
@@ -495,6 +497,46 @@ class LaunchManager:
         else:
             console.print("[dim]Auto Sell не был запущен[/dim]")
     # ====================== VOLUME MAKER ======================
+    def _is_valid_mint(self, mint: str) -> bool:
+        # Trim 'pump' if copy error from URL
+        mint = mint.rstrip('pump') if mint.endswith('pump') else mint
+
+        # Local base58 check
+        if not (32 <= len(mint) <= 44) or not all(c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz' for c in mint):
+            logger.error(f"Invalid base58 format for mint {mint}")
+            return False
+    
+        for attempt in range(20):
+            try:
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "getAccountInfo",
+                    "params": [mint, {"commitment": "processed"}]
+                }
+                r = requests.post(RPC_URL, json=payload, timeout=8)
+                r.raise_for_status()
+                data = r.json()
+                print(f"[{attempt+1}/20] RPC response: {data}")  # Debug, remove later
+            
+                if 'result' in data and data['result']['value'] is not None:
+                    print(f"✅ Mint found on attempt {attempt+1}")
+                    return True
+            
+                time.sleep(4)  # Wait between
+            except requests.exceptions.HTTPError as he:
+                if he.response.status_code == 429:
+                    logger.warning("Rate limit, sleeping 10 sec")
+                    time.sleep(10)
+                    continue
+                logger.error(f"HTTP error: {he}")
+            except Exception as e:
+                logger.error(f"Validation error (attempt {attempt+1}): {e}")
+                time.sleep(4)
+    
+        print(f"❌ Mint not found after 20 attempts")
+        return False
+    
     def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01, mint: str = None):
         if not self.wallets:
             logger.error("Нет кошельков")
@@ -509,44 +551,76 @@ class LaunchManager:
             else:
                 mint = Prompt.ask("Введи mint токена")
 
-        # Инициализируем позиции (если первый запуск)
+        # Сохраняем mint для логов и меню
+        self.mint = mint
+
+        # Инициализация позиций (real fetch tokens balance)
         if not self.wallet_positions:
             for w in self.wallets:
-                self.wallet_positions[w["pubkey"]] = 0.0
+                pubkey_str = w["pubkey"]
+                pubkey = Pubkey.from_string(pubkey_str)
+                mint_pubkey = Pubkey.from_string(mint)
+                ata = get_associated_token_address(pubkey, mint_pubkey)
+                try:
+                    payload = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTokenAccountBalance",
+                        "params": [str(ata)]
+                    }
+                    r = requests.post(RPC_URL, json=payload, timeout=10)
+                    self.wallet_positions[pubkey_str] = r.json().get('result', {}).get('value', {}).get('uiAmount', 0.0)
+                except:
+                    self.wallet_positions[pubkey_str] = 0.0
 
         self.volume_running = True
         self.volume_start_time = time.time()
         self.volume_minutes = minutes
         self.volume_logs.clear()
 
-        logger.info(f"🚀 Умный Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
-        end_time = time.time() + minutes * 60
+        logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
+
+        end_time = time.time() + (minutes * 60)   # ← вот где была ошибка
         cycle = 0
+        num_cycles = minutes * 6
 
-        while time.time() < end_time:
-            if not self.volume_running:
-                self.volume_logs.append(f"[{time.strftime('%H:%M:%S')}] 🛑 Volume Maker остановлен по запросу")
-                break
-
+        while time.time() < end_time and self.volume_running:
             cycle += 1
             self.volume_logs.append(f"[{time.strftime('%H:%M:%S')}] Цикл {cycle}")
             if len(self.volume_logs) > 15:
                 self.volume_logs.pop(0)
 
-            # Умная логика для каждого кошелька
-            for w in self.wallets:
-                pubkey = w["pubkey"]
-                current_tokens = self.wallet_positions.get(pubkey, 0.0)
+            # Перемешиваем кошельки правильно
+            shuffled_wallets = self.wallets[:]
+            random.shuffle(shuffled_wallets)
 
-                # Определяем, что делать
-                if current_tokens < 0.3:           # мало токенов → покупаем
+            for w in shuffled_wallets:
+                pubkey_str = w["pubkey"]
+                pubkey = Pubkey.from_string(pubkey_str)
+
+                # Balance check SOL
+                try:
+                    balance = self.get_wallet_balance(pubkey_str)
+                except Exception as e:
+                    logger.error(f"Balance check failed for {pubkey_str}: {e}")
+                    continue
+
+                if balance < trade_sol + 0.001:  # Запас на fees
+                    logger.warning(f"Недостаточно SOL на {pubkey_str}, пропускаем")
+                    continue
+
+                # Tuned buy/sell: use real tokens position
+                current_tokens = self.wallet_positions.get(pubkey_str, 0.0)
+
+                # Smart logic: buy if low, sell if high or random with TP-like
+                if current_tokens < 0.3 * trade_sol:  # Low — buy to build position
                     side = "buy"
                     amount = trade_sol
-                elif current_tokens > 0.7:         # много токенов → продаём часть
+                elif current_tokens > 0.7 * trade_sol:  # High — sell all (TP simulation)
                     side = "sell"
-                    amount = "all"                 # продаём всё, но потом сразу докупим в следующем цикле
+                    amount = "all"
                 else:
-                    side = random.choice(["buy", "sell"])
+                    side = random.choice(["buy", "sell"])  # Random for volume
                     amount = trade_sol if side == "buy" else "all"
 
                 try:
@@ -557,21 +631,24 @@ class LaunchManager:
                         "dry_run": False
                     }
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
-                    status = "OK" if r.status_code == 200 else "ошибка"
+                    status = "OK" if r.status_code == 200 else f"error {r.status_code}"
+                    self.volume_logs.append(f"  {pubkey_str[:6]}... {side.upper()} {status} (tokens: {current_tokens:.4f})")
 
-                    # Обновляем позицию (примерно)
-                    if side == "buy":
-                        self.wallet_positions[pubkey] += 0.6   # условно +60% позиции
-                    else:
-                        self.wallet_positions[pubkey] = max(0.0, self.wallet_positions[pubkey] * 0.4)  # оставляем ~40%
+                    # Update position after tx (refetch real)
+                    mint_pubkey = Pubkey.from_string(mint)
+                    ata = get_associated_token_address(pubkey, mint_pubkey)
+                    payload_balance = {
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "getTokenAccountBalance",
+                        "params": [str(ata)]
+                    }
+                    r_balance = requests.post(RPC_URL, json=payload_balance, timeout=10)
+                    new_tokens = r_balance.json().get('result', {}).get('value', {}).get('uiAmount', current_tokens) if r_balance.ok else current_tokens
+                    self.wallet_positions[pubkey_str] = new_tokens
 
-                    log = f"  {pubkey[:6]}... {side.upper()} {status}"
-                    self.volume_logs.append(log)
-                    if len(self.volume_logs) > 15:
-                        self.volume_logs.pop(0)
-
-                except:
-                    self.volume_logs.append(f"  {pubkey[:6]}... таймаут")
+                except Exception as e:
+                    self.volume_logs.append(f"  {pubkey_str[:6]}... таймаут: {str(e)}")
 
                 time.sleep(random.uniform(1.5, 4.0))
 
@@ -579,7 +656,7 @@ class LaunchManager:
 
         self.volume_running = False
         self.volume_start_time = None
-        logger.success("✅ Умный Volume Maker завершён")
+        logger.success("✅ Volume Maker завершён")
 
     def status(self):
         console.print(f"[bold]Кошельков:[/bold] {len(self.wallets)}")
