@@ -18,9 +18,9 @@ python -m tools.patterns_50k --save / сохранить после фильтр
 npm install - установка библиотек(package.json)
 npm audit - проверка библиотек
 
-netstat -ano | findstr :8787 - проверка что порт локальный
+netstat -ano | findstr :8790 - проверка что порт локальный
 
-irm http://127.0.0.1:8787/health - проверка health 
+irm http://127.0.0.1:8790/health - проверка health 
 
 node .\gen_keypair.mjs - генерация кошелька
 
@@ -67,3 +67,7 @@ ping mainnet.block-engine.jito.wtf  - узнаем пинг сервера
 
 !node -e "console.log(crypto.randomUUID())" - сгенерировать JITO_UUID
 
+git rm --cached -- data/wallets.json
+git add .gitignore
+git commit -m "Stop tracking wallets.json"
+git push - удаляем кэш файла, после добавления в .gitignore, пушим коммит и файл больше не отображается на GitHub

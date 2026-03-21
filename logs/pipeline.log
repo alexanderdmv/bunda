@@ -1425,3 +1425,85 @@
 2026-03-11T17:32:36.486899+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-11T17:33:43.283372+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-16T03:20:11.024116+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T03:53:22.435313+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T03:54:15.537925+0100 | ERROR | ❌ Некорректный mint: GhpzgLZrbVunsyJncWCL9tSxYgBAMJTozpYd8XDtpump
+2026-03-16T03:57:44.526722+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T16:32:52.979511+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T16:33:23.080090+0100 | INFO | 🚀 Volume Maker запущен на 10 минут по токену GhpzgLZr...
+2026-03-16T16:33:23.080090+0100 | ERROR | Balance check failed for 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:23.080090+0100 | ERROR | Balance check failed for CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:23.080090+0100 | ERROR | Balance check failed for 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:23.080090+0100 | ERROR | Balance check failed for 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:23.080090+0100 | ERROR | Balance check failed for 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:31.243355+0100 | ERROR | Balance check failed for 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:31.243355+0100 | ERROR | Balance check failed for 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:31.243355+0100 | ERROR | Balance check failed for CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:31.243355+0100 | ERROR | Balance check failed for 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:31.243355+0100 | ERROR | Balance check failed for 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:42.710832+0100 | ERROR | Balance check failed for 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:42.710832+0100 | ERROR | Balance check failed for 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:42.710832+0100 | ERROR | Balance check failed for 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:42.710832+0100 | ERROR | Balance check failed for CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:42.710832+0100 | ERROR | Balance check failed for 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:53.616290+0100 | ERROR | Balance check failed for 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:53.616290+0100 | ERROR | Balance check failed for 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:53.616290+0100 | ERROR | Balance check failed for 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:53.616290+0100 | ERROR | Balance check failed for CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:53.616290+0100 | ERROR | Balance check failed for 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp: 'LaunchManager' object has no attribute 'get_wallet_balance'
+2026-03-16T16:33:58.198631+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-16T16:34:08.942822+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-16T17:42:10.249010+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T17:42:57.456591+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену GhpzgLZr...
+2026-03-16T17:43:23.073174+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-16T17:43:35.576250+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-16T17:46:01.242650+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T20:23:45.541644+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-16T20:24:08.408315+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену GhpzgLZr...
+2026-03-16T20:24:46.077135+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-16T20:25:08.482150+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-17T16:18:40.603981+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-17T16:19:06.731569+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-17T16:19:39.811813+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-17T16:19:42.145733+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-17T18:27:27.882580+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-17T18:27:43.772040+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-17T18:28:01.680205+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-17T18:28:17.752113+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-17T22:57:30.993034+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-17T22:57:54.416144+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-17T22:58:15.042755+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-17T22:58:26.398894+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-17T23:13:03.262845+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-17T23:13:14.020681+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-17T23:13:26.067948+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-17T23:14:08.525425+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-17T23:46:18.938759+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-18T11:10:58.875042+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-18T11:11:08.974908+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-18T11:11:30.138355+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-18T11:12:14.780030+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-18T11:35:47.455562+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-18T11:36:37.205632+0100 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 6qHbExon...
+2026-03-18T11:37:16.584844+0100 | WARNING | Недостаточно SOL для первого BUY на 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:17.273167+0100 | WARNING | Недостаточно SOL для первого BUY на 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:18.023917+0100 | WARNING | Недостаточно SOL для первого BUY на 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:18.924445+0100 | WARNING | Недостаточно SOL для первого BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:19.882002+0100 | WARNING | Недостаточно SOL для первого BUY на 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:31.058174+0100 | WARNING | Недостаточно SOL для первого BUY на 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:31.692967+0100 | WARNING | Недостаточно SOL для первого BUY на 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:32.265965+0100 | WARNING | Недостаточно SOL для первого BUY на 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:32.881718+0100 | WARNING | Недостаточно SOL для первого BUY на 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:33.605714+0100 | WARNING | Недостаточно SOL для первого BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.005077, need≈0.007000, ata_exists=False
+2026-03-18T11:37:36.394231+0100 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-18T11:37:42.214848+0100 | SUCCESS | ✅ Volume Maker завершён
+2026-03-18T11:38:38.615688+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-19T01:00:12.443728+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-19T01:05:57.362658+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-19T01:06:40.171773+0100 | ERROR | ❌ Некорректный mint: 6qHbExonEbTXiQLVUfPsn29hrvQHDkFVjWXFLCk8pump
+2026-03-19T01:07:45.437961+0100 | ERROR | ❌ Некорректный mint: 6qHbExonEbTXiQLVUfPsn29hrvQHDkFVjWXFLCk8pump
+2026-03-19T01:15:07.637614+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-19T01:15:52.474660+0100 | ERROR | ❌ Некорректный mint: 6qHbExonEbTXiQLVUfPsn29hrvQHDkFVjWXFLCk8pump
+2026-03-20T15:47:34.879300+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-20T15:59:10.735305+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-21T15:04:10.607864+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-21T15:07:07.545159+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH

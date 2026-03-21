@@ -20,7 +20,7 @@ def main_menu(manager: LaunchManager):
     while True:
         clear()
         console.print(Panel.fit(
-            "[bold cyan]SOLANA PUMP.FUN BUNDLE BOT[/bold cyan]\n"
+            "[bold cyan]SOLANA PUMP.FUN BUNDLE BOT[/bold cyan]\n",
             title="Main Menu",
             border_style="green"
         ))

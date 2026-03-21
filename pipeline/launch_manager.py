@@ -4,7 +4,7 @@ import random
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import requests
 from solders.keypair import Keypair
@@ -156,6 +156,70 @@ class LaunchManager:
             except:
                 console.print(f"  {w['pubkey'][:8]}... → [red]ошибка RPC[/red]")
 
+    def _rpc_json(self, payload: dict, timeout: int = 10) -> dict:
+        r = requests.post(RPC_URL, json=payload, timeout=timeout)
+        r.raise_for_status()
+        data = r.json()
+        if "error" in data:
+            raise Exception(f"RPC error: {data['error']}")
+        return data
+
+    def get_wallet_balance(self, pubkey_str: str) -> float:
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getBalance",
+            "params": [pubkey_str]
+        }
+        data = self._rpc_json(payload, timeout=10)
+        value = data.get("result", {}).get("value")
+        if value is None:
+            raise Exception(f"Unexpected RPC response: {data}")
+        return value / 1_000_000_000
+
+    def _get_wallet_token_balance(self, owner_pubkey_str: str, mint: str) -> Tuple[float, bool]:
+        """Вернуть (uiAmount, token_account_exists) для owner+mint.
+        Используем getTokenAccountsByOwner с фильтром mint, чтобы корректно работать
+        и с обычным SPL Token, и с Token-2022 mint.
+        """
+        try:
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getTokenAccountsByOwner",
+                "params": [
+                    owner_pubkey_str,
+                    {"mint": mint},
+                    {"encoding": "jsonParsed", "commitment": "processed"},
+                ],
+            }
+            data = self._rpc_json(payload, timeout=10)
+            accounts = data.get("result", {}).get("value", []) or []
+            total = 0.0
+            for acc in accounts:
+                try:
+                    parsed = acc.get("account", {}).get("data", {}).get("parsed", {})
+                    token_amount = parsed.get("info", {}).get("tokenAmount", {})
+                    ui = token_amount.get("uiAmount")
+                    if ui is None:
+                        ui_str = token_amount.get("uiAmountString")
+                        ui = float(ui_str) if ui_str not in (None, "") else 0.0
+                    total += float(ui or 0.0)
+                except Exception:
+                    continue
+            return total, len(accounts) > 0
+        except Exception:
+            return 0.0, False
+
+    def _token_account_exists(self, owner_pubkey_str: str, mint: str) -> bool:
+        _, exists = self._get_wallet_token_balance(owner_pubkey_str, mint)
+        return exists
+
+    def _required_buy_balance(self, trade_sol: float, ata_exists: bool) -> float:
+        first_buy_buffer = 0.0060
+        regular_buy_buffer = 0.0020
+        return trade_sol + (regular_buy_buffer if ata_exists else first_buy_buffer)
+
     # ====================== WITHDRAW ALL ======================
     def withdraw_all(self):
         if not self.main_kp:
@@ -228,10 +292,13 @@ class LaunchManager:
             max_amount = 0.006
             swap_chance = 0.5
 
+        warmup_mint = self._load_last_mint()
+        warmup_mint = self._is_valid_mint(warmup_mint) if warmup_mint else None
+
         console.print(Panel.fit(
             f"[bold]Запускаю продвинутый прогрев кошельков (Warmup 3.0)\n"
             f"Циклов: {cycles} | Интенсивность: {intensity}\n"
-            f"Включает Jupiter свопы и создание ATA[/bold]",
+            f"Mint для buy-шага: {warmup_mint[:8] + '...' if warmup_mint else 'не задан, buy-шаг будет пропущен'}[/bold]",
             title="Wallet Warmup 3.0",
             border_style="blue"
         ))
@@ -244,41 +311,44 @@ class LaunchManager:
                 from_w = self.wallets[i]
                 to_w = self.wallets[i + 1]
 
-                # 1. Перевод SOL (всегда)
                 amount = round(random.uniform(0.0005, max_amount), 6)
                 try:
-                    payload = {"side": "transfer", "to": to_w["pubkey"], "amount": amount, "dry_run": False}
+                    payload = {
+                        "side": "transfer",
+                        "to": to_w["pubkey"],
+                        "amount_in": amount,
+                        "dry_run": False,
+                        "secret_b58": from_w["secret_b58"],
+                    }
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=25)
                     if r.status_code == 200:
                         console.print(f"  SOL transfer → {amount} SOL [green]OK[/green]")
                     else:
-                        console.print(f"  SOL transfer → ошибка")
-                except:
-                    console.print(f"  SOL transfer → таймаут")
+                        console.print("  SOL transfer → ошибка")
+                except Exception:
+                    console.print("  SOL transfer → таймаут")
 
                 time.sleep(random.uniform(1.8, 5.5))
 
-                # 2. Jupiter swap (с вероятностью)
-                if random.random() < swap_chance:
+                if warmup_mint and random.random() < swap_chance:
                     try:
-                        # Покупаем небольшой объём популярного токена (USDC → BONK или POPCAT и т.д.)
                         payload = {
                             "side": "buy",
-                            "mint": "9z4e8qZ2z1z2z3z4z5z6z7z8z9z0z1z2z3z4z5z6z7z8z9z0",  # пример популярного токена
-                            "amount_in": round(random.uniform(0.001, 0.004), 6),
-                            "dry_run": False
+                            "mint": warmup_mint,
+                            "amount_in": round(random.uniform(0.0005, 0.0015), 6),
+                            "dry_run": False,
+                            "secret_b58": from_w["secret_b58"],
                         }
                         r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=30)
                         if r.status_code == 200:
-                            console.print(f"  Jupiter swap → [green]OK[/green]")
+                            console.print("  Warmup buy → [green]OK[/green]")
                         else:
-                            console.print(f"  Jupiter swap → ошибка")
-                    except:
-                        console.print(f"  Jupiter swap → таймаут")
+                            console.print(f"  Warmup buy → ошибка {r.status_code}")
+                    except Exception:
+                        console.print("  Warmup buy → таймаут")
 
                     time.sleep(random.uniform(3.0, 8.0))
 
-            # Большая пауза между циклами
             time.sleep(random.uniform(20, 45))
 
         console.print("[green]✅ Продвинутый Warmup 3.0 успешно завершён![/green]")
@@ -395,21 +465,48 @@ class LaunchManager:
     # ====================== SELL ALL ======================
     def sell_all(self, mint: str):
         self.emergency_stop()
+        mint = self._is_valid_mint(mint)
+        if not mint:
+            return
+
         console.print(f"[bold magenta]Продаём ВСЕ токены {mint}...[/bold magenta]")
         for w in self.wallets:
             try:
-                payload = {"side": "sell", "mint": mint, "amount_in": "all", "dry_run": False}
+                current_tokens, ata_exists = self._get_wallet_token_balance(w["pubkey"], mint)
+                if not ata_exists or current_tokens <= 0:
+                    console.print(f"  → {w['pubkey'][:8]}... [yellow]нет токенов[/yellow]")
+                    continue
+
+                payload = {
+                    "side": "sell",
+                    "mint": mint,
+                    "dry_run": False,
+                    "secret_b58": w["secret_b58"],
+                    "sell_all": True,
+                }
+
                 r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=30)
                 if r.status_code == 200:
-                    console.print(f"  → {w['pubkey'][:8]}... [green]продано[/green]")
+                    body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                    sig = body.get("signature") if isinstance(body, dict) else None
+                    sig_part = f" | sig={sig[:8]}..." if sig else ""
+                    console.print(f"  → {w['pubkey'][:8]}... [green]продано[/green] ({current_tokens:.4f}){sig_part}")
+                    self.wallet_positions[w["pubkey"]] = 0.0
                 else:
-                    console.print(f"  → {w['pubkey'][:8]}... [red]ошибка[/red]")
-            except:
+                    err = r.text[:220].replace("\n", " ")
+                    console.print(f"  → {w['pubkey'][:8]}... [red]ошибка {r.status_code}[/red]")
+                    console.print(f"     {err}")
+            except Exception as e:
                 console.print(f"  → {w['pubkey'][:8]}... [red]ошибка[/red]")
+                console.print(f"     {e}")
         console.print("[green]Sell All завершён[/green]")
 
     # ====================== AUTO SELL WITH TRAILING ======================
     def auto_sell_tp(self, mint: str, tp_percent: float = 100.0, trailing_percent: float = 30.0):
+        mint = self._is_valid_mint(mint)
+        if not mint:
+            return
+
         if self.auto_sell_running:
             console.print("[red]⚠️ Auto Sell уже запущен! Сначала останови предыдущий.[/red]")
             return
@@ -497,52 +594,46 @@ class LaunchManager:
         else:
             console.print("[dim]Auto Sell не был запущен[/dim]")
     # ====================== VOLUME MAKER ======================
-    def _is_valid_mint(self, mint: str) -> bool:
-        # Trim 'pump' if copy error from URL
-        mint = mint.rstrip('pump') if mint.endswith('pump') else mint
+    def _is_valid_mint(self, mint: str) -> str | None:
+        raw = (mint or "").strip()
+        if not raw:
+            logger.error("❌ Mint пустой")
+            return None
 
-        # Local base58 check
-        if not (32 <= len(mint) <= 44) or not all(c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz' for c in mint):
-            logger.error(f"Invalid base58 format for mint {mint}")
-            return False
-    
-        for attempt in range(20):
+        # Если вставили ссылку целиком — берём последний сегмент
+        raw = raw.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+        if "/" in raw:
+            raw = raw.rsplit("/", 1)[-1]
+
+        candidates = [raw]
+
+        # Fallback для случаев, когда источник прислал лишний суффикс "pump"
+        if raw.endswith("pump") and len(raw) > 44:
+            candidates.append(raw[:-4])
+
+        checked = set()
+
+        for candidate in candidates:
+            if candidate in checked:
+                continue
+            checked.add(candidate)
+
             try:
-                payload = {
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "getAccountInfo",
-                    "params": [mint, {"commitment": "processed"}]
-                }
-                r = requests.post(RPC_URL, json=payload, timeout=8)
-                r.raise_for_status()
-                data = r.json()
-                print(f"[{attempt+1}/20] RPC response: {data}")  # Debug, remove later
-            
-                if 'result' in data and data['result']['value'] is not None:
-                    print(f"✅ Mint found on attempt {attempt+1}")
-                    return True
-            
-                time.sleep(4)  # Wait between
-            except requests.exceptions.HTTPError as he:
-                if he.response.status_code == 429:
-                    logger.warning("Rate limit, sleeping 10 sec")
-                    time.sleep(10)
-                    continue
-                logger.error(f"HTTP error: {he}")
-            except Exception as e:
-                logger.error(f"Validation error (attempt {attempt+1}): {e}")
-                time.sleep(4)
-    
-        print(f"❌ Mint not found after 20 attempts")
-        return False
+                normalized = str(Pubkey.from_string(candidate))
+                if normalized != raw:
+                    logger.info(f"ℹ️ Mint нормализован: {raw} -> {normalized}")
+                return normalized
+            except Exception:
+                continue
+
+        logger.error(f"❌ Некорректный mint: {mint}")
+        return None
     
     def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01, mint: str = None):
         if not self.wallets:
             logger.error("Нет кошельков")
             return
 
-        # Определяем mint
         if mint is None:
             last_mint = self._load_last_mint()
             if last_mint:
@@ -551,27 +642,17 @@ class LaunchManager:
             else:
                 mint = Prompt.ask("Введи mint токена")
 
-        # Сохраняем mint для логов и меню
+        mint = self._is_valid_mint(mint)
+        if not mint:
+            return
+
         self.mint = mint
 
-        # Инициализация позиций (real fetch tokens balance)
-        if not self.wallet_positions:
-            for w in self.wallets:
-                pubkey_str = w["pubkey"]
-                pubkey = Pubkey.from_string(pubkey_str)
-                mint_pubkey = Pubkey.from_string(mint)
-                ata = get_associated_token_address(pubkey, mint_pubkey)
-                try:
-                    payload = {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "getTokenAccountBalance",
-                        "params": [str(ata)]
-                    }
-                    r = requests.post(RPC_URL, json=payload, timeout=10)
-                    self.wallet_positions[pubkey_str] = r.json().get('result', {}).get('value', {}).get('uiAmount', 0.0)
-                except:
-                    self.wallet_positions[pubkey_str] = 0.0
+        # Первичная синхронизация реальных token balances для всех кошельков.
+        self.wallet_positions = {}
+        for w in self.wallets:
+            tokens, _ = self._get_wallet_token_balance(w["pubkey"], mint)
+            self.wallet_positions[w["pubkey"]] = tokens
 
         self.volume_running = True
         self.volume_start_time = time.time()
@@ -580,9 +661,8 @@ class LaunchManager:
 
         logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
 
-        end_time = time.time() + (minutes * 60)   # ← вот где была ошибка
+        end_time = time.time() + (minutes * 60)
         cycle = 0
-        num_cycles = minutes * 6
 
         while time.time() < end_time and self.volume_running:
             cycle += 1
@@ -590,69 +670,96 @@ class LaunchManager:
             if len(self.volume_logs) > 15:
                 self.volume_logs.pop(0)
 
-            # Перемешиваем кошельки правильно
             shuffled_wallets = self.wallets[:]
             random.shuffle(shuffled_wallets)
 
             for w in shuffled_wallets:
-                pubkey_str = w["pubkey"]
-                pubkey = Pubkey.from_string(pubkey_str)
+                if not self.volume_running:
+                    break
 
-                # Balance check SOL
+                pubkey_str = w["pubkey"]
+
                 try:
                     balance = self.get_wallet_balance(pubkey_str)
                 except Exception as e:
                     logger.error(f"Balance check failed for {pubkey_str}: {e}")
                     continue
 
-                if balance < trade_sol + 0.001:  # Запас на fees
-                    logger.warning(f"Недостаточно SOL на {pubkey_str}, пропускаем")
-                    continue
+                current_tokens, ata_exists = self._get_wallet_token_balance(pubkey_str, mint)
+                self.wallet_positions[pubkey_str] = current_tokens
 
-                # Tuned buy/sell: use real tokens position
-                current_tokens = self.wallet_positions.get(pubkey_str, 0.0)
-
-                # Smart logic: buy if low, sell if high or random with TP-like
-                if current_tokens < 0.3 * trade_sol:  # Low — buy to build position
+                # Не сравниваем token amount с SOL amount — это разные единицы.
+                # Если токенов нет: BUY. Если токены уже есть: миксуем BUY/SELL.
+                if current_tokens <= 0:
                     side = "buy"
-                    amount = trade_sol
-                elif current_tokens > 0.7 * trade_sol:  # High — sell all (TP simulation)
-                    side = "sell"
-                    amount = "all"
                 else:
-                    side = random.choice(["buy", "sell"])  # Random for volume
-                    amount = trade_sol if side == "buy" else "all"
+                    side = random.choices(["sell", "buy"], weights=[55, 45], k=1)[0]
+
+                if side == "buy":
+                    required_balance = self._required_buy_balance(trade_sol, ata_exists)
+                    if balance < required_balance:
+                        self.volume_logs.append(
+                            f"  {pubkey_str[:6]}... BUY skip: low SOL {balance:.4f} < {required_balance:.4f}"
+                        )
+                        logger.warning(
+                            f"Недостаточно SOL для BUY на {pubkey_str}. balance={balance:.6f}, need≈{required_balance:.6f}, ata_exists={ata_exists}"
+                        )
+                        continue
+
+                    payload = {
+                        "side": "buy",
+                        "mint": mint,
+                        "amount_in": trade_sol,
+                        "dry_run": False,
+                        "secret_b58": w["secret_b58"],
+                    }
+
+                else:
+                    if current_tokens <= 0:
+                        self.volume_logs.append(f"  {pubkey_str[:6]}... SELL skip: no tokens")
+                        continue
+
+                    if balance < 0.0005:
+                        self.volume_logs.append(f"  {pubkey_str[:6]}... SELL skip: low SOL for fees")
+                        continue
+
+                    payload = {
+                        "side": "sell",
+                        "mint": mint,
+                        "dry_run": False,
+                        "secret_b58": w["secret_b58"],
+                        "sell_all": True,
+                    }
 
                 try:
-                    payload = {
-                        "side": side,
-                        "mint": mint,
-                        "amount_in": amount,
-                        "dry_run": False
-                    }
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
-                    status = "OK" if r.status_code == 200 else f"error {r.status_code}"
-                    self.volume_logs.append(f"  {pubkey_str[:6]}... {side.upper()} {status} (tokens: {current_tokens:.4f})")
 
-                    # Update position after tx (refetch real)
-                    mint_pubkey = Pubkey.from_string(mint)
-                    ata = get_associated_token_address(pubkey, mint_pubkey)
-                    payload_balance = {
-                        "jsonrpc": "2.0",
-                        "id": 1,
-                        "method": "getTokenAccountBalance",
-                        "params": [str(ata)]
-                    }
-                    r_balance = requests.post(RPC_URL, json=payload_balance, timeout=10)
-                    new_tokens = r_balance.json().get('result', {}).get('value', {}).get('uiAmount', current_tokens) if r_balance.ok else current_tokens
-                    self.wallet_positions[pubkey_str] = new_tokens
+                    if r.status_code == 200:
+                        body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                        sig = body.get("signature") if isinstance(body, dict) else None
+                        sig_part = f" | sig={sig[:8]}..." if sig else ""
 
+                        time.sleep(0.8)
+                        new_tokens, _ = self._get_wallet_token_balance(pubkey_str, mint)
+                        self.wallet_positions[pubkey_str] = new_tokens
+                        self.volume_logs.append(
+                            f"  {pubkey_str[:6]}... {side.upper()} OK (tokens: {new_tokens:.4f}){sig_part}"
+                        )
+                    else:
+                        err = r.text[:220].replace("\n", " ")
+                        self.volume_logs.append(
+                            f"  {pubkey_str[:6]}... {side.upper()} error {r.status_code} (tokens: {current_tokens:.4f})"
+                        )
+                        logger.error(
+                            f"Trade failed for {pubkey_str[:8]}... side={side} status={r.status_code} body={err}"
+                        )
                 except Exception as e:
                     self.volume_logs.append(f"  {pubkey_str[:6]}... таймаут: {str(e)}")
 
                 time.sleep(random.uniform(1.5, 4.0))
 
-            time.sleep(random.uniform(8, 18))
+            if self.volume_running:
+                time.sleep(random.uniform(8, 18))
 
         self.volume_running = False
         self.volume_start_time = None

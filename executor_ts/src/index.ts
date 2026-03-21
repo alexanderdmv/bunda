@@ -234,12 +234,6 @@ const connection = new Connection(SOL_RPC_URL, {
 });
 
 // Emit a compact line every 10 seconds
-setInterval(() => {
-  const cps = rpcCallsWin / (RPC_WIN_MS / 1000);
-  console.log(`[rpc] 10s calls=${rpcCallsWin} (~${cps.toFixed(1)}/s) 429=${rpc429Win} totals calls=${rpcCallsTotal} 429=${rpc429Total}`);
-  rpcCallsWin = 0;
-  rpc429Win = 0;
-}, RPC_WIN_MS);
 
 function asPubkey(s: string): PublicKey {
   return new PublicKey(s);
@@ -262,6 +256,21 @@ async function simulateTx(tx: Transaction | VersionedTransaction) {
  */
 function callMaybeOpts(fn: any, positional: any[], opts: any) {
   return fn.length <= 1 ? fn(opts) : fn(...positional);
+}
+
+async function sendBuiltTx(
+  connection: Connection,
+  tx: Transaction | VersionedTransaction,
+  signer?: Keypair
+): Promise<string> {
+  if (tx instanceof VersionedTransaction) {
+    return await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
+  }
+  return await connection.sendTransaction(
+    tx,
+    signer ? [signer] : [],
+    { skipPreflight: false, maxRetries: 3 }
+  );
 }
 
 const app = express();
@@ -349,194 +358,237 @@ app.get("/quote", async (req, res) => {
   }
 });
 app.post("/trade", async (req, res) => {
-  const parsed = OrderRequestSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ ok: false, message: parsed.error.message, dry_run: true });
-  }
-  const o = parsed.data;
-
-  const customSecretB58 = o.secret_b58 ?? undefined;
-  let txSigner = payer;
-  if (typeof customSecretB58 === 'string' && customSecretB58.trim().length > 0) {
-    console.log(`[debug] customSecretB58 length: ${customSecretB58.length}`);
-    try {
-      const decoded = bs58.decode(customSecretB58);
-      console.log(`[debug] decoded secret length: ${decoded.length}`);
-      if (decoded.length === 64) {
-        const customSecret = Uint8Array.from(decoded);
-        txSigner = Keypair.fromSecretKey(customSecret);
-      } else if (decoded.length === 32) {
-        const customSeed = Uint8Array.from(decoded);
-        txSigner = Keypair.fromSeed(customSeed);
-      } else {
-        throw new Error(`Invalid secret key size: ${decoded.length} bytes, expected 32 or 64`);
-      }
-    } catch (e: any) {
-      console.error(`[error] Custom key load failed: ${e.message}`);
-      return res.status(400).json({ ok: false, message: `Invalid secret_b58: ${e.message}`, dry_run: true });
+  try {
+    const parsed = OrderRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: parsed.error.message, dry_run: true });
     }
-  }
+    const o = parsed.data;
+    const anyO = o as any;
 
-  const side = o.side ?? (o.action as "buy" | "sell" | "transfer" | undefined);
-  if (!side) {
-    return res.status(400).json({ ok: false, message: "side/action required", dry_run: true });
-  }
-  const mintStr = o.mint;
-  const toStr = o.to;
-  const amountIn = o.amount_in ?? o.amount_sol;
-  const bodyDryRun = o.dry_run ?? o.simulate;  // Fallback to simulate if present
-  const dryRun = typeof bodyDryRun === "boolean" ? bodyDryRun : DEFAULT_DRY_RUN;
+    const customSecretB58 = typeof anyO.secret_b58 === "string" ? anyO.secret_b58 : undefined;
+    let txSigner = payer;
+    if (customSecretB58 && customSecretB58.trim().length > 0) {
+      console.log(`[debug] customSecretB58 length: ${customSecretB58.length}`);
+      try {
+        const decoded = bs58.decode(customSecretB58);
+        console.log(`[debug] decoded secret length: ${decoded.length}`);
+        if (decoded.length === 64) {
+          txSigner = Keypair.fromSecretKey(Uint8Array.from(decoded));
+        } else if (decoded.length === 32) {
+          txSigner = Keypair.fromSeed(Uint8Array.from(decoded));
+        } else {
+          throw new Error(`Invalid secret key size: ${decoded.length} bytes, expected 32 or 64`);
+        }
+      } catch (e: any) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`[error] Custom key load failed: ${msg}`);
+        return res.status(400).json({ ok: false, message: `Invalid secret_b58: ${msg}`, dry_run: true });
+      }
+    }
 
-  console.log(`[trade] side=${side} dryRun=${dryRun} live=${LIVE_ENABLED ?? false}`);
+    const side = (o.side ?? o.action ?? anyO.side ?? anyO.action) as
+      | "buy"
+      | "sell"
+      | "transfer"
+      | undefined;
+    if (!side) {
+      return res.status(400).json({ ok: false, message: "side/action required", dry_run: true });
+    }
 
-  if (side === "transfer") {
-  if (!toStr) {
-    return res.status(400).json({ ok: false, message: "to required for transfer", dry_run: true });
-  }
-  if (amountIn === undefined || amountIn <= 0) {
-    return res.status(400).json({ ok: false, message: "amount_in required and >0 for transfer", dry_run: true });
-  }
-  const toPubkey = new PublicKey(toStr);
-  const amountLamports = Math.floor(amountIn * 1e9);
-  const tx = await buildTransferTx(connection, txSigner, toPubkey, amountLamports);
+    const mintStr = typeof o.mint === "string" ? o.mint : undefined;
+    const toStr = typeof anyO.to === "string" ? anyO.to : undefined;
+    const amountIn =
+      o.amount_in ??
+      o.amount_sol ??
+      (typeof anyO.amount === "number" ? anyO.amount : undefined);
+    const bodyDryRun =
+      (typeof anyO.dryRun === "boolean" ? anyO.dryRun : undefined) ??
+      o.dry_run ??
+      o.simulate;
+    const dryRun = typeof bodyDryRun === "boolean" ? bodyDryRun : DEFAULT_DRY_RUN;
 
-  if (dryRun || !LIVE_ENABLED) {
-    const base64Tx = Buffer.from(tx.serialize()).toString("base64");
-    return res.json({
-      ok: true,
-      dry_run: true,
-      tx_base64: base64Tx
-    });
-  } else {
-    let sig: string;
-    if (JITO_ENABLED) {
-      // Создаём Jito config
+    const slippage = Number(anyO.slippage ?? 0);
+    const slippageBpsInput = Number(anyO.slippageBps ?? o.slippage_bps ?? 0);
+    const slippageBps = slippage > 0 ? slippage * 100 : (slippageBpsInput > 0 ? slippageBpsInput : 1500);
+    const useJito = Boolean(anyO.useJito ?? JITO_ENABLED);
+    const simulate = Boolean(o.simulate ?? false);
+
+    console.log(`[trade] side=${side} dryRun=${dryRun} live=${LIVE_ENABLED ?? false}`);
+
+    if (side === "transfer") {
+      if (!toStr) {
+        return res.status(400).json({ ok: false, message: "to required for transfer", dry_run: true });
+      }
+      if (amountIn === undefined || amountIn <= 0) {
+        return res.status(400).json({ ok: false, message: "amount_in required and >0 for transfer", dry_run: true });
+      }
+
+      const toPubkey = new PublicKey(toStr);
+      const amountLamports = Math.floor(amountIn * 1e9);
+      const tx = await buildTransferTx(connection, txSigner, toPubkey, amountLamports);
+
+      if (dryRun || !LIVE_ENABLED) {
+        const base64Tx = Buffer.from(tx.serialize()).toString("base64");
+        return res.json({ ok: true, dry_run: true, tx_base64: base64Tx });
+      }
+
+      if (JITO_ENABLED && useJito) {
+        const jitoCfg: JitoConfig = {
+          blockEngineUrl: JITO_BLOCK_ENGINE_URL,
+          uuid: JITO_UUID,
+          enabled: true,
+        };
+        const tips = await getTipAccounts(jitoCfg);
+        const tipTx = await callMaybeOpts(
+          buildTipTx as any,
+          [connection, txSigner, tips, JITO_TIP_LAMPORTS],
+          { connection, payer: txSigner, tipAccounts: tips, tipLamports: JITO_TIP_LAMPORTS }
+        );
+        const base64TxStr = Buffer.from(tx.serialize()).toString("base64");
+        const base64TipStr = Buffer.from(tipTx.serialize()).toString("base64");
+        const sig = await sendBundle(jitoCfg, [base64TxStr, base64TipStr]);
+        return res.json({ ok: true, dry_run: false, signature: sig, sent_via: "jito_bundle" });
+      }
+
+      const sig = await sendBuiltTx(connection, tx, txSigner);
+      return res.json({ ok: true, dry_run: false, signature: sig, sent_via: "rpc" });
+    }
+
+    if (side !== "buy" && side !== "sell") {
+      return res.status(400).json({ ok: false, message: "side must be buy/sell/transfer", dry_run: true });
+    }
+
+    if (!mintStr) {
+      return res.status(400).json({ ok: false, message: "mint required for buy/sell", dry_run: true });
+    }
+
+    const mint = new PublicKey(mintStr);
+    const amountInSol = Number(amountIn ?? 0);
+
+    if (side === "buy" && (!amountInSol || amountInSol <= 0)) {
+      return res.status(400).json({ ok: false, dry_run: true, message: "buy requires amount_in (SOL)" });
+    }
+
+    const solLamports = BigInt(Math.round(amountInSol * 1e9));
+
+    let tx: Transaction | VersionedTransaction;
+    let quoteMeta: any = undefined;
+    if (side === "buy") {
+      tx = await callMaybeOpts(
+        buildBuyTx as any,
+        [connection, txSigner, mint, solLamports, slippageBps],
+        { connection, payer: txSigner, mint, amountInLamports: solLamports, slippageBps }
+      );
+      quoteMeta = (tx as any).__quote;
+    } else {
+      tx = await callMaybeOpts(
+        buildSellTx as any,
+        [connection, txSigner, mint, slippageBps],
+        { connection, payer: txSigner, mint, slippageBps }
+      );
+    }
+
+    if (simulate) {
+      try {
+        const sim = await simulateTx(tx);
+        return res.json({ ok: true, dry_run: true, simulate: sim, quote: quoteMeta });
+      } catch (e) {
+        const simMsg = e instanceof Error ? e.message : String(e);
+        return res.json({
+          ok: true,
+          dry_run: true,
+          quote: quoteMeta,
+          message: "[SIMULATE_FAILED] built tx only (simulation error)",
+          simulate_error: simMsg,
+        });
+      }
+    }
+
+    if (dryRun || !LIVE_ENABLED) {
+      return res.json({
+        ok: true,
+        dry_run: true,
+        quote: quoteMeta,
+        message: "[DRY_RUN] built tx only (not sent)",
+      });
+    }
+
+    if (JITO_ENABLED && useJito) {
       const jitoCfg: JitoConfig = {
         blockEngineUrl: JITO_BLOCK_ENGINE_URL,
         uuid: JITO_UUID,
         enabled: true,
       };
-      // Получаем tip-аккаунты
       const tips = await getTipAccounts(jitoCfg);
-      // Строим tipTx (используем JITO_TIP_LAMPORTS из env, по умолчанию 10000 лампортс)
       const tipTx = await callMaybeOpts(
         buildTipTx as any,
-        [connection, payer, tips, JITO_TIP_LAMPORTS],
-        { connection, payer, tipAccounts: tips, tipLamports: JITO_TIP_LAMPORTS }
+        [connection, txSigner, tips, JITO_TIP_LAMPORTS],
+        { connection, payer: txSigner, tipAccounts: tips, tipLamports: JITO_TIP_LAMPORTS }
       );
-      // Base64 для бандла: [transfer_tx, tip_tx]
-      const base64TxStr = Buffer.from(tx.serialize()).toString("base64");
-      const base64TipStr = Buffer.from(tipTx.serialize()).toString("base64");
-      // Отправляем bundle
-      sig = await sendBundle(jitoCfg, [base64TxStr, base64TipStr]);
-    } else {
-      sig = await connection.sendTransaction(tx, { skipPreflight: false });
+
+      const txBase64 = Buffer.from(tx.serialize()).toString("base64");
+      const tipBase64 = Buffer.from(tipTx.serialize()).toString("base64");
+      const sig = await sendBundle(jitoCfg, [txBase64, tipBase64]);
+      return res.json({ ok: true, dry_run: false, signature: sig, sent_via: "jito_bundle" });
     }
-    return res.json({ ok: true, dry_run: false, signature: sig, sent_via: JITO_ENABLED ? "jito_bundle" : "rpc" });
-  }
-}
 
-  if (side !== "buy" && side !== "sell") {
-    return res.status(400).json({ ok: false, message: "side must be buy/sell/transfer", dry_run: true });
-  }
-
-  if (!mintStr) {
-    return res.status(400).json({ ok: false, message: "mint required for buy/sell", dry_run: true });
-  }
-
-  const mint = new PublicKey(mintStr);
-  const amountInSol = Number(amountIn ?? 0);
-  const slippage = Number(o.slippage ?? 0);
-  const slippageBpsInput = Number(o.slippageBps ?? 0);
-  const slippageBps = slippage > 0 ? slippage * 100 : (slippageBpsInput > 0 ? slippageBpsInput : 1500);
-  const useJito = Boolean(o.useJito ?? JITO_ENABLED);
-  const simulate = Boolean(o.simulate ?? false);
-
-  // Merged and corrected buy/sell logic (removed duplicate dryRun calculation)
-  if (side === "buy" && (!amountInSol || amountInSol <= 0)) {
-    return res
-      .status(400)
-      .json({ ok: false, dry_run: true, message: "buy requires amount_in (SOL)" });
-  }
-
-  const solLamports = BigInt(Math.round(amountInSol * 1e9));
-
-  let tx: VersionedTransaction;  // Updated type to match transfer tx for consistency
-  let quoteMeta: any = undefined;
-  if (side === "buy") {
-    tx = await callMaybeOpts(
-      buildBuyTx as any,
-      [connection, payer, mint, solLamports, slippageBps],
-      { connection, payer, mint, amountInLamports: solLamports, slippageBps }
-    );
-    quoteMeta = (tx as any).__quote;
-  } else if (side === "sell") {
-    tx = await callMaybeOpts(
-      buildSellTx as any,
-      [connection, payer, mint, slippageBps],
-      { connection, payer, mint, slippageBps }
-    );
-  } else {
-    return res
-      .status(400)
-      .json({ ok: false, dry_run: true, message: "side must be buy|sell" });
-  }
-
-  
-  if (simulate) {
-    try {
-      const sim = await simulateTx(tx);
-      return res.json({ ok: true, dry_run: true, simulate: sim, quote: quoteMeta });
-    } catch (e) {
-      const simMsg = e instanceof Error ? e.message : String(e);
-      // Best-effort: don't fail the whole request if the RPC rejects simulation.
-      return res.json({
-        ok: true,
-        dry_run: true,
-        quote: quoteMeta,
-        message: "[SIMULATE_FAILED] built tx only (simulation error)",
-        simulate_error: simMsg,
-      });
-    }
-  }
-
-
-  if (dryRun || !LIVE_ENABLED) {
-    return res.json({
-      ok: true,
-      dry_run: true,
-      quote: quoteMeta,
-      message: "[DRY_RUN] built tx only (not sent)",
-    });
-  }
-
-  if (JITO_ENABLED && useJito) {
-    const jitoCfg: JitoConfig = {
-      blockEngineUrl: JITO_BLOCK_ENGINE_URL,
-      uuid: JITO_UUID,
-      enabled: true,
-    };
-    const tips = await getTipAccounts(jitoCfg);
-
-    const tipTx = await callMaybeOpts(
-      buildTipTx as any,
-      [connection, payer, tips, JITO_TIP_LAMPORTS],
-      { connection, payer, tipAccounts: tips, tipLamports: JITO_TIP_LAMPORTS }
-    );
-
-    const sig = await sendBundle(jitoCfg, [tx, tipTx]);
-    return res.json({ ok: true, dry_run: false, signature: sig, sent_via: "jito_bundle" });
-  } else {
-    const sig = await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3, });
+    const sig = await sendBuiltTx(connection, tx, txSigner);
     return res.json({ ok: true, dry_run: false, signature: sig, sent_via: "rpc" });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[trade] failed:", msg);
+    if (e instanceof Error && e.stack) console.error(e.stack);
+
+    const status =
+      msg.includes("Bonding curve account not found") ||
+      msg.includes("Mint account not found on RPC") ||
+      msg.includes("No token balance to sell") ||
+      msg.includes("Invalid arguments") ||
+      msg.includes("Simulation failed") ||
+      msg.includes("custom program error: 0x1788") ||
+      msg.includes("Error Code: Overflow")
+        ? 422
+        : 500;
+
+    return res.status(status).json({ ok: false, message: msg, dry_run: true });
   }
 });
-app.listen(PORT, HOST, () => {
+const rpcTelemetryTimer = setInterval(() => {
+  const cps = rpcCallsWin / (RPC_WIN_MS / 1000);
+  console.log(`[rpc] 10s calls=${rpcCallsWin} (~${cps.toFixed(1)}/s) 429=${rpc429Win} totals calls=${rpcCallsTotal} 429=${rpc429Total}`);
+  rpcCallsWin = 0;
+  rpc429Win = 0;
+}, RPC_WIN_MS);
+(rpcTelemetryTimer as any).unref?.();
+
+const server = app.listen(PORT, HOST, () => {
   console.log(`[executor] listening on http://${HOST}:${PORT}`);
   console.log(`[executor] pubkey: ${payer.publicKey.toBase58()}`);
   console.log(`[executor] dry-run default: ${DEFAULT_DRY_RUN}`);
   console.log(`[executor] live enabled: ${LIVE_ENABLED}`);
   console.log(`[executor] jito enabled: ${JITO_ENABLED} (${JITO_BLOCK_ENGINE_URL})`);
+});
+
+let shuttingDown = false;
+function shutdown(sig: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`[fatal] ${sig} received`);
+  clearInterval(rpcTelemetryTimer);
+  (server as any).closeIdleConnections?.();
+  (server as any).closeAllConnections?.();
+  try { process.stdin.pause(); } catch {}
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 150).unref();
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("uncaughtException", (err) => {
+  console.error("[fatal] uncaughtException:", err);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[fatal] unhandledRejection:", reason);
 });
 // ====================== TRANSFER SOL ======================
 async function buildTransferTx(connection: Connection, fromKp: Keypair, to: PublicKey, amountLamports: number): Promise<VersionedTransaction> {  // Изменили тип возврата

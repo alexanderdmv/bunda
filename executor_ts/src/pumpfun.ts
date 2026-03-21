@@ -53,11 +53,23 @@ function asBN(v: bigint | number | string | BN): BN {
   return new BN(String(v));
 }
 
+const DEBUG_PUMP = (process.env.PUMP_DEBUG ?? "true").toLowerCase() !== "false";
+
+function pumpDebug(...args: any[]) {
+  if (DEBUG_PUMP) console.log(...args);
+}
+
 async function detectTokenProgram(connection: Connection, mint: PublicKey): Promise<PublicKey> {
-  const info = await connection.getAccountInfo(mint, "processed");
-  const owner = info?.owner;
-  if (owner?.equals(TOKEN_2022_PROGRAM_ID)) return TOKEN_2022_PROGRAM_ID;
-  return TOKEN_PROGRAM_ID;
+  const info = await connection.getAccountInfo(mint, "confirmed");
+  if (!info) {
+    throw new Error(`Mint account not found on RPC: ${mint.toBase58()}`);
+  }
+
+  const owner = info.owner;
+  if (owner.equals(TOKEN_2022_PROGRAM_ID)) return TOKEN_2022_PROGRAM_ID;
+  if (owner.equals(TOKEN_PROGRAM_ID)) return TOKEN_PROGRAM_ID;
+
+  throw new Error(`Unexpected mint owner for ${mint.toBase58()}: ${owner.toBase58()}`);
 }
 
 
@@ -76,6 +88,72 @@ function pickPdaPubkey(r: any): PublicKey | null {
 
 function tryCall(fn: any, args: any[]): any {
   try { return fn(...args); } catch { return undefined; }
+}
+
+const PUMP_PROGRAM_ID = new PublicKey("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P");
+
+function deriveBondingCurveV2Pda(mint: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("bonding-curve-v2"), mint.toBuffer()],
+    PUMP_PROGRAM_ID
+  )[0];
+}
+
+function deriveUserVolumeAccumulatorPda(user: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("user_volume_accumulator"), user.toBuffer()],
+    PUMP_PROGRAM_ID
+  )[0];
+}
+
+function getFeeConfigPda(base: any): PublicKey | null {
+  const candidates = [base?.PUMP_FEE_CONFIG_PDA, base?.FEE_CONFIG_PDA, base?.feeConfigPda];
+  for (const c of candidates) {
+    const pk = pickPdaPubkey(typeof c === "function" ? tryCall(c, []) : c);
+    if (pk) return pk;
+  }
+  return null;
+}
+
+function readCashbackEnabledFromBondingCurveInfo(info: any | null): boolean {
+  try {
+    const data = info?.data;
+    const buf = Buffer.isBuffer(data) ? data : null;
+    if (!buf || buf.length < 83) return false;
+    return buf[82] === 1;
+  } catch {
+    return false;
+  }
+}
+
+function patchPumpIxAccounts(
+  ixs: any[],
+  side: "buy" | "sell",
+  mint: PublicKey,
+  user: PublicKey,
+  bondingCurveAccountInfo: any | null
+): any[] {
+  const bondingCurveV2 = deriveBondingCurveV2Pda(mint);
+  const userVolumeAccumulator = deriveUserVolumeAccumulatorPda(user);
+  const cashbackEnabled = readCashbackEnabledFromBondingCurveInfo(bondingCurveAccountInfo);
+
+  for (const ix of ixs) {
+    if (!ix || !Array.isArray(ix.keys)) continue;
+
+    const hasBcV2 = ix.keys.some((k: any) => k?.pubkey?.equals?.(bondingCurveV2));
+    const hasUserVol = ix.keys.some((k: any) => k?.pubkey?.equals?.(userVolumeAccumulator));
+
+    if (side === "sell" && cashbackEnabled && !hasUserVol) {
+      ix.keys.push({ pubkey: userVolumeAccumulator, isSigner: false, isWritable: true });
+    }
+
+    if (!hasBcV2) {
+      ix.keys.push({ pubkey: bondingCurveV2, isSigner: false, isWritable: false });
+    }
+  }
+
+  pumpDebug(`[${side}-debug] patched trailing accounts: cashbackEnabled=${cashbackEnabled} bondingCurveV2=${bondingCurveV2.toBase58()} userVol=${userVolumeAccumulator.toBase58()}`);
+  return ixs;
 }
 
 function deriveBondingCurvePda(base: any, mint: PublicKey, tokenProgram: PublicKey): PublicKey | null {
@@ -102,6 +180,59 @@ async function getAccountInfoSafe(connection: Connection, pubkey: PublicKey | nu
     return await connection.getAccountInfo(pubkey, 'processed');
   } catch {
     return null;
+  }
+}
+async function getMintAndCurveDiagnostics(
+  connection: Connection,
+  mint: PublicKey,
+  tokenProgram: PublicKey
+): Promise<{ mintOwner: string | null; curvePda: string | null; curveExists: boolean }> {
+  const mintInfo = await connection.getAccountInfo(mint, "confirmed");
+  const curvePda = deriveBondingCurvePda(getPumpBase(), mint, tokenProgram);
+  const curveInfo = await getAccountInfoSafe(connection, curvePda);
+
+  return {
+    mintOwner: mintInfo?.owner?.toBase58?.() ?? null,
+    curvePda: curvePda?.toBase58?.() ?? null,
+    curveExists: Boolean(curveInfo),
+  };
+}
+
+async function fetchBuyStateSafe(
+  connection: Connection,
+  mint: PublicKey,
+  user: PublicKey,
+  tokenProgram: PublicKey
+): Promise<any> {
+  const { fetchBuyState } = getSdk(connection);
+  try {
+    return await fetchBuyState(mint, user, tokenProgram);
+  } catch (e: any) {
+    const diag = await getMintAndCurveDiagnostics(connection, mint, tokenProgram);
+    throw new Error(
+      `fetchBuyState failed for mint=${mint.toBase58()} tokenProgram=${tokenProgram.toBase58()} ` +
+      `mintOwner=${diag.mintOwner ?? "null"} curvePda=${diag.curvePda ?? "null"} ` +
+      `curveExists=${diag.curveExists} reason=${e?.message ?? String(e)}`
+    );
+  }
+}
+
+async function fetchSellStateSafe(
+  connection: Connection,
+  mint: PublicKey,
+  user: PublicKey,
+  tokenProgram: PublicKey
+): Promise<any> {
+  const { fetchSellState } = getSdk(connection);
+  try {
+    return await fetchSellState(mint, user, tokenProgram);
+  } catch (e: any) {
+    const diag = await getMintAndCurveDiagnostics(connection, mint, tokenProgram);
+    throw new Error(
+      `fetchSellState failed for mint=${mint.toBase58()} tokenProgram=${tokenProgram.toBase58()} ` +
+      `mintOwner=${diag.mintOwner ?? "null"} curvePda=${diag.curvePda ?? "null"} ` +
+      `curveExists=${diag.curveExists} reason=${e?.message ?? String(e)}`
+    );
   }
 }
 type SdkCombo = {
@@ -266,13 +397,13 @@ export async function quoteBuy(
     );
   }
 
-  const { fetchGlobal, fetchFeeConfig, fetchBuyState } = getSdk(connection);
+  const { fetchGlobal, fetchFeeConfig } = getSdk(connection);
   const tokenProgram = await detectTokenProgram(connection, mint);
 
   const [global, feeConfig, st] = await Promise.all([
     fetchGlobal(),
     fetchFeeConfig(),
-    fetchBuyState(mint, payerPublicKey, tokenProgram),
+    fetchBuyStateSafe(connection, mint, payerPublicKey, tokenProgram),
   ]);
 
   const solAmount = asBN(solInLamports);
@@ -346,7 +477,7 @@ export async function quoteSellAll(
     );
   }
 
-  const { fetchGlobal, fetchFeeConfig, fetchSellState } = getSdk(connection);
+  const { fetchGlobal, fetchFeeConfig } = getSdk(connection);
   const tokenProgram = await detectTokenProgram(connection, mint);
 
   // If user has no ATA / balance, return zeros (don't call fetchSellState which throws).
@@ -358,7 +489,7 @@ export async function quoteSellAll(
   const [global, feeConfig, st] = await Promise.all([
     fetchGlobal(),
     fetchFeeConfig(),
-    fetchSellState(mint, payerPublicKey, tokenProgram),
+    fetchSellStateSafe(connection, mint, payerPublicKey, tokenProgram),
   ]);
 
   const bondingCurve = st?.bondingCurve;
@@ -395,14 +526,14 @@ export async function quoteSellTokenAmount(
     );
   }
 
-  const { fetchGlobal, fetchFeeConfig, fetchBuyState } = getSdk(connection);
+  const { fetchGlobal, fetchFeeConfig } = getSdk(connection);
   const tokenProgram = await detectTokenProgram(connection, mint);
 
   const [global, feeConfig, st] = await Promise.all([
     fetchGlobal(),
     fetchFeeConfig(),
     // Use buy state: it tends to be available even if the user's ATA doesn't exist yet.
-    fetchBuyState(mint, payerPublicKey, tokenProgram),
+    fetchBuyStateSafe(connection, mint, payerPublicKey, tokenProgram),
   ]);
 
   const bondingCurve = st?.bondingCurve ?? null;
@@ -441,7 +572,7 @@ export async function buildBuyTx(
     );
   }
 
-  const { offline, fetchGlobal, fetchFeeConfig, fetchBuyState } = getSdk(connection);
+  const { offline, fetchGlobal, fetchFeeConfig } = getSdk(connection);
   let tokenProgram = isNewToken ? TOKEN_2022_PROGRAM_ID : await detectTokenProgram(connection, mint);
 
   let global, feeConfig, st;
@@ -453,7 +584,7 @@ export async function buildBuyTx(
     [global, feeConfig, st] = await Promise.all([
       fetchGlobal(),
       fetchFeeConfig(),
-      fetchBuyState(mint, payer.publicKey, tokenProgram),
+      fetchBuyStateSafe(connection, mint, payer.publicKey, tokenProgram),
     ]);
   }
 
@@ -479,6 +610,15 @@ export async function buildBuyTx(
       lpFeeBps: asBN(0),         // 0%
     };
   }
+
+  pumpDebug("[buy-debug] mint=", mint.toBase58());
+  pumpDebug("[buy-debug] tokenProgram=", tokenProgram.toBase58());
+  pumpDebug("[buy-debug] isNewToken=", isNewToken);
+  pumpDebug("[buy-debug] hasGlobal=", !!global);
+  pumpDebug("[buy-debug] hasFeeConfig=", !!feeConfig);
+  pumpDebug("[buy-debug] hasState=", !!st);
+  pumpDebug("[buy-debug] hasBondingCurve=", !!bondingCurve);
+  pumpDebug("[buy-debug] bondingCurve keys=", bondingCurve ? Object.keys(bondingCurve) : null);
 
   const expectedTokens: BN = quoteFn({
     global,
@@ -522,23 +662,44 @@ export async function buildBuyTx(
   if (bondingCurve) args.bondingCurve = bondingCurve;
   if (bondingCurveAccountInfo) args.bondingCurveAccountInfo = bondingCurveAccountInfo;
 
+  if (st?.associatedUserAccountInfo !== undefined) {
+    args.associatedUserAccountInfo = st.associatedUserAccountInfo;
+  }
+
   if (feeConfig) {
     if (feeConfig.feeConfig) args.feeConfig = feeConfig.feeConfig;
     else args.feeConfig = feeConfig;
     if (feeConfig.feeConfigAccountInfo) args.feeConfigAccountInfo = feeConfig.feeConfigAccountInfo;
     if (feeConfig.accountInfo && !args.feeConfigAccountInfo) args.feeConfigAccountInfo = feeConfig.accountInfo;
+    if (!args.feeConfigAccountInfo) {
+      const feeConfigPda = getFeeConfigPda(base2);
+      if (feeConfigPda) {
+        args.feeConfigAccountInfo = await getAccountInfoSafe(connection, feeConfigPda);
+      }
+    }
   }
 
   if (!isNewToken && !args.bondingCurveAccountInfo) {
     throw new Error("Buy state missing bondingCurveAccountInfo (cannot build tx)");
   }
 
+  pumpDebug("[buy-debug] buyInstructions arg keys=", Object.keys(args).sort());
+  pumpDebug("[buy-debug] mayhemMode=", args.mayhemMode);
+  pumpDebug("[buy-debug] hasBondingCurveAccountInfo=", !!args.bondingCurveAccountInfo);
+  pumpDebug("[buy-debug] hasFeeConfigAccountInfo=", !!args.feeConfigAccountInfo);
+  pumpDebug("[buy-debug] amount=", args.amount?.toString?.() ?? args.amount);
+  pumpDebug("[buy-debug] solAmount=", args.solAmount?.toString?.() ?? args.solAmount);
+
   let ixs: any[];
   try {
     ixs = await offline.buyInstructions(args);
+    ixs = patchPumpIxAccounts(ixs, "buy", mint, payer.publicKey, bondingCurveAccountInfo);
   } catch (e: any) {
     const msg = e?.message ? String(e.message) : String(e);
-    throw new Error(`buyInstructions failed: ${msg}`);
+    const keys = Object.keys(args).sort().join(",");
+    throw new Error(
+      `buyInstructions failed: ${msg} | keys=${keys} | tokenProgram=${tokenProgram.toBase58()} | hasBC=${!!args.bondingCurve} | hasBCInfo=${!!args.bondingCurveAccountInfo} | hasFeeCfg=${!!args.feeConfig} | hasFeeCfgInfo=${!!args.feeConfigAccountInfo} | mayhemMode=${String(args.mayhemMode)}`
+    );
   }
 
   const tx = new Transaction();
@@ -571,7 +732,7 @@ export async function buildSellTx(
     );
   }
 
-  const { offline, fetchGlobal, fetchFeeConfig, fetchSellState } = getSdk(connection);
+  const { offline, fetchGlobal, fetchFeeConfig } = getSdk(connection);
   const tokenProgram = await detectTokenProgram(connection, mint);
 
   // Get balance first; if none, fail early (don't call fetchSellState which throws).
@@ -581,7 +742,7 @@ export async function buildSellTx(
   const [global, feeConfig, st] = await Promise.all([
     fetchGlobal(),
     fetchFeeConfig(),
-    fetchSellState(mint, payer.publicKey, tokenProgram),
+    fetchSellStateSafe(connection, mint, payer.publicKey, tokenProgram),
   ]);
 
   const bondingCurve = st?.bondingCurve;
@@ -624,18 +785,36 @@ export async function buildSellTx(
     else args.feeConfig = feeConfig;
     if (feeConfig.feeConfigAccountInfo) args.feeConfigAccountInfo = feeConfig.feeConfigAccountInfo;
     if (feeConfig.accountInfo && !args.feeConfigAccountInfo) args.feeConfigAccountInfo = feeConfig.accountInfo;
+    if (!args.feeConfigAccountInfo) {
+      const feeConfigPda = getFeeConfigPda(base2);
+      if (feeConfigPda) {
+        args.feeConfigAccountInfo = await getAccountInfoSafe(connection, feeConfigPda);
+      }
+    }
   }
 
   if (!args.bondingCurveAccountInfo) {
     throw new Error("Sell state missing bondingCurveAccountInfo (cannot build tx)");
   }
 
+  pumpDebug("[sell-debug] mint=", mint.toBase58());
+  pumpDebug("[sell-debug] tokenProgram=", tokenProgram.toBase58());
+  pumpDebug("[sell-debug] sellInstructions arg keys=", Object.keys(args).sort());
+  pumpDebug("[sell-debug] hasBondingCurveAccountInfo=", !!args.bondingCurveAccountInfo);
+  pumpDebug("[sell-debug] hasFeeConfigAccountInfo=", !!args.feeConfigAccountInfo);
+  pumpDebug("[sell-debug] amount=", args.amount?.toString?.() ?? args.amount);
+  pumpDebug("[sell-debug] solAmount=", args.solAmount?.toString?.() ?? args.solAmount);
+
   let ixs: any[];
   try {
     ixs = await offline.sellInstructions(args);
+    ixs = patchPumpIxAccounts(ixs, "sell", mint, payer.publicKey, bondingCurveAccountInfo);
   } catch (e: any) {
     const msg = e?.message ? String(e.message) : String(e);
-    throw new Error(`sellInstructions failed: ${msg}`);
+    const keys = Object.keys(args).sort().join(",");
+    throw new Error(
+      `sellInstructions failed: ${msg} | keys=${keys} | tokenProgram=${tokenProgram.toBase58()} | hasBC=${!!args.bondingCurve} | hasBCInfo=${!!args.bondingCurveAccountInfo} | hasFeeCfg=${!!args.feeConfig} | hasFeeCfgInfo=${!!args.feeConfigAccountInfo} | mayhemMode=${String(args.mayhemMode)}`
+    );
   }
 
   const tx = new Transaction();
