@@ -1507,3 +1507,55 @@
 2026-03-20T15:59:10.735305+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-21T15:04:10.607864+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
 2026-03-21T15:07:07.545159+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-22T17:16:50.891833+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-24T15:32:18.764331+0100 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T20:00:30.754026+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T20:08:57.311526+0200 | INFO | 🚀 Volume Maker запущен на 5 минут по токену EMaibzGP...
+2026-03-30T20:08:58.029004+0200 | WARNING | Недостаточно SOL для BUY на 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:08:58.839694+0200 | WARNING | Недостаточно SOL для BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:08:59.579538+0200 | WARNING | Недостаточно SOL для BUY на 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:00.375679+0200 | WARNING | Недостаточно SOL для BUY на 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:01.141745+0200 | WARNING | Недостаточно SOL для BUY на 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:15.803660+0200 | WARNING | Недостаточно SOL для BUY на 6dG9nUTgY9xR17SwVPkNkGHwtv3ifEKCmhXx2dsfTWvN. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:16.536921+0200 | WARNING | Недостаточно SOL для BUY на 6hDmX6akzoQ7Ear3fBRBoMcxZKawTnpjQM1Xtfxb8xhY. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:17.220972+0200 | WARNING | Недостаточно SOL для BUY на 9YgkEFWnby3bsNYQeFvo7A2W2Lbs7Fe2Qn6rFS82cxHp. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:18.013007+0200 | WARNING | Недостаточно SOL для BUY на 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:18.694148+0200 | WARNING | Недостаточно SOL для BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.005896, need≈0.007000, ata_exists=False
+2026-03-30T20:09:25.402235+0200 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-30T20:09:29.137683+0200 | SUCCESS | ✅ Volume Maker завершён
+2026-03-30T20:10:33.761636+0200 | INFO | 🚀 Volume Maker запущен на 5 минут по токену EMaibzGP...
+2026-03-30T20:10:34.803158+0200 | ERROR | Trade failed for 6dG9nUTg... side=buy status=422 body={"ok":false,"message":"Mint account not found on RPC: EMaibzGPDTMf4WbcsKBnRAjfPGftWLbuZAKseKCXpump","dry_run":true}
+2026-03-30T20:10:37.861287+0200 | ERROR | Trade failed for 6hDmX6ak... side=buy status=422 body={"ok":false,"message":"Mint account not found on RPC: EMaibzGPDTMf4WbcsKBnRAjfPGftWLbuZAKseKCXpump","dry_run":true}
+2026-03-30T20:10:42.361815+0200 | ERROR | Trade failed for CedVYPHC... side=buy status=422 body={"ok":false,"message":"Mint account not found on RPC: EMaibzGPDTMf4WbcsKBnRAjfPGftWLbuZAKseKCXpump","dry_run":true}
+2026-03-30T20:10:45.544740+0200 | ERROR | Trade failed for 9YgkEFWn... side=buy status=422 body={"ok":false,"message":"Mint account not found on RPC: EMaibzGPDTMf4WbcsKBnRAjfPGftWLbuZAKseKCXpump","dry_run":true}
+2026-03-30T20:10:48.007852+0200 | ERROR | Trade failed for 5HYSrVZy... side=buy status=422 body={"ok":false,"message":"Mint account not found on RPC: EMaibzGPDTMf4WbcsKBnRAjfPGftWLbuZAKseKCXpump","dry_run":true}
+2026-03-30T20:11:03.110651+0200 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-30T20:11:03.383575+0200 | SUCCESS | ✅ Volume Maker завершён
+2026-03-30T20:12:29.661867+0200 | INFO | 🚀 Volume Maker запущен на 5 минут по токену EMaibzGP...
+2026-03-30T20:14:11.121161+0200 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-03-30T20:14:12.331220+0200 | SUCCESS | ✅ Volume Maker завершён
+2026-03-30T20:19:21.273432+0200 | ERROR | Ошибка: {"ok":false,"error":"Cannot read properties of undefined (reading '_bn')"}
+2026-03-30T20:47:14.236275+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T20:47:47.980115+0200 | ERROR | Ошибка: {"ok":false,"error":"Jito RPC getTipAccounts failed: Network congested. Endpoint is globally rate limited."}
+2026-03-30T21:40:13.798482+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T21:40:42.199146+0200 | ERROR | Ошибка: {"ok":false,"error":"No signers"}
+2026-03-30T21:49:59.968928+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T21:50:28.690518+0200 | ERROR | Ошибка: {"ok":false,"error":"Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 0: custom program error: 0x7d4. \nLogs: \n[\n  \"Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P invoke [1]\",\n  \"Program log: Instruction: ExtendAccount\",\n  \"Program log: AnchorError caused by account: account. Error Code: ConstraintOwner. Error Number: 2004. Error Message: An owner constraint was violated.\",\n  \"Program log: Left:\",\n  \"Program log: 11111111111111111111111111111111\",\n  \"Program log: Right:\",\n  \"Program log: 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P\",\n  \"Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P consumed 4609 of 600000 compute units\",\n  \"Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P failed: custom program error: 0x7d4\"\n]. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+2026-03-30T21:53:10.211346+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T22:14:00.494190+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-03-30T22:14:29.367204+0200 | ERROR | Ошибка: {"ok":false,"error":"No signers"}
+2026-04-01T00:02:11.395771+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T00:03:05.574652+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T00:07:36.126786+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T00:08:17.184477+0200 | ERROR | ❌ Mint пустой
+2026-04-01T01:41:08.442552+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T01:43:44.323657+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T01:58:39.725013+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-01T01:59:56.699682+0200 | SUCCESS | ✅ Bundle отправлен с анти-детектом!
+2026-04-01T01:59:56.699682+0200 | INFO | Mint: 2zEDBnKYbYxpRtsyxhi8QKYeF8bMhBiwgEJMS3oLrWws
+2026-04-01T01:59:56.700910+0200 | INFO | Bundle: 51mvg6fqoDME5uyMF6GkWXNR4p26viQC6hHY6FjZ6JczcrSqXbHUJ1FuDnxEJ41tR12fe9RioouGY9bguJ5udakA
+2026-04-01T02:00:12.044648+0200 | INFO | 🚀 Volume Maker запущен на 5 минут по токену 2zEDBnKY...
+2026-04-01T02:01:01.614184+0200 | WARNING | Недостаточно SOL для BUY на 5HYSrVZyZ7jZkrDNoXXr32osax9fKVMVD235SveGHmev. balance=0.002722, need≈0.003000, ata_exists=True
+2026-04-01T02:01:02.165591+0200 | WARNING | Недостаточно SOL для BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.002020, need≈0.003000, ata_exists=True
+2026-04-01T02:01:23.300811+0200 | SUCCESS | ✅ Volume Maker завершён
+2026-04-01T02:01:23.300811+0200 | SUCCESS | ✅ Volume Maker полностью остановлен

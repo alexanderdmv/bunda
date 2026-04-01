@@ -263,14 +263,26 @@ async function sendBuiltTx(
   tx: Transaction | VersionedTransaction,
   signer?: Keypair
 ): Promise<string> {
+  const sendOpts = { skipPreflight: false, maxRetries: 3 };
+
   if (tx instanceof VersionedTransaction) {
-    return await connection.sendTransaction(tx, { skipPreflight: false, maxRetries: 3 });
+    return await connection.sendTransaction(tx, sendOpts);
   }
-  return await connection.sendTransaction(
-    tx,
-    signer ? [signer] : [],
-    { skipPreflight: false, maxRetries: 3 }
-  );
+
+  // Legacy Transaction
+  if (signer) {
+    return await connection.sendTransaction(tx, [signer], sendOpts);
+  }
+
+  const hasAnySignature =
+    Array.isArray(tx.signatures) &&
+    tx.signatures.some((s: any) => !!s?.signature);
+
+  if (!hasAnySignature) {
+    throw new Error("No signers and transaction is not pre-signed");
+  }
+
+  return await connection.sendRawTransaction(tx.serialize(), sendOpts);
 }
 
 const app = express();
@@ -616,11 +628,14 @@ app.post("/launch", async (req, res) => {
       description,
       image_path,
       wallets,
+      dev_buy_sol,
       buy_amounts,
       jito_tips,
       dry_run
     } = req.body;
 
+    const devBuySol = Math.max(0, Number(dev_buy_sol ?? 0));
+    const devBuyLamports = BigInt(Math.floor(devBuySol * 1e9));
     const isDryRun = dry_run ?? (DEFAULT_DRY_RUN ?? true);
 
     if (isDryRun) {
@@ -643,9 +658,112 @@ app.post("/launch", async (req, res) => {
       file: image_path
     });
 
+    const launchMint = (createTx as any).mint || new PublicKey("11111111111111111111111111111111");
+
+    // 2. Если Jito выключен — сначала CREATE, ждём готовности mint/state,
+    //    потом строим BUY уже как обычные post-create buys (isNewToken=false).
+    if (!JITO_ENABLED) {
+      console.warn("[launch] JITO_ENABLED=false, using sequential RPC fallback");
+      const signatures: string[] = [];
+
+      const createSig = await sendBuiltTx(connection, createTx, payer);
+      signatures.push(createSig);
+
+      try {
+        await connection.confirmTransaction(createSig, "confirmed");
+      } catch {}
+
+      const readyDeadline = Date.now() + 25_000;
+      let ready = false;
+      let lastReadyErr = "";
+      while (Date.now() < readyDeadline) {
+        try {
+          const mintInfo = await connection.getAccountInfo(launchMint, "confirmed");
+          if (mintInfo) {
+            await fetchBondingCurveState(connection, launchMint);
+            ready = true;
+            break;
+          }
+        } catch (e: any) {
+          lastReadyErr = e?.message ? String(e.message) : String(e);
+        }
+        await new Promise(r => setTimeout(r, 800));
+      }
+
+      if (!ready) {
+        throw new Error(
+          `Launch mint was created but not ready on RPC for buys: ${launchMint.toBase58()}${lastReadyErr ? ` | last=${lastReadyErr}` : ""}`
+        );
+      }
+
+      if (devBuySol > 0) {
+        const devBuyTx = await buildBuyTx(
+          connection,
+          payer,
+          launchMint,
+          devBuyLamports,
+          1500,
+          false
+        );
+
+        const devBuySig = await sendBuiltTx(connection, devBuyTx, payer);
+        signatures.push(devBuySig);
+
+        try {
+          await connection.confirmTransaction(devBuySig, "confirmed");
+        } catch {}
+
+        await new Promise(r => setTimeout(r, randomInt(500, 1200)));
+      }
+
+      for (let i = 0; i < wallets.length; i++) {
+        const w = wallets[i];
+        const buyerKp = Keypair.fromSecretKey(bs58.decode(w.secret_b58));
+        const buyAmountSol = buy_amounts && Array.isArray(buy_amounts) ? buy_amounts[i] : 0.03;
+
+        const buyTx = await buildBuyTx(
+          connection,
+          buyerKp,
+          launchMint,
+          BigInt(Math.floor(buyAmountSol * 1e9)),
+          1500,
+          false
+        );
+
+        const sig = await sendBuiltTx(connection, buyTx, buyerKp);
+        signatures.push(sig);
+
+        if (i < wallets.length - 1) {
+          await new Promise(r => setTimeout(r, randomInt(450, 1850)));
+        }
+      }
+
+      return res.json({
+        ok: true,
+        mint: launchMint.toBase58(),
+        bundle_sig: signatures[0] || "rpc-launch-ok",
+        anti_detect: true,
+        wallets_count: wallets.length,
+        sent_via: "rpc_fallback",
+        signatures
+      });
+    }
+
+    // 3. Jito path: prebuild CREATE + buys as one bundle for the brand-new token case.
     const bundleTxs: any[] = [createTx];
 
-    // 2. Покупки
+    if (devBuySol > 0) {
+      const devBuyTx = await buildBuyTx(
+        connection,
+        payer,
+        launchMint,
+        devBuyLamports,
+        1500,
+        true
+      );
+      bundleTxs.push(devBuyTx);
+    }
+
     for (let i = 0; i < wallets.length; i++) {
       const w = wallets[i];
       const buyerKp = Keypair.fromSecretKey(bs58.decode(w.secret_b58));
@@ -653,7 +771,7 @@ app.post("/launch", async (req, res) => {
       const buyTx = await buildBuyTx(
         connection,
         buyerKp,
-        (createTx as any).mint || new PublicKey("11111111111111111111111111111111"),
+        launchMint,
         BigInt(Math.floor(buyAmountSol * 1e9)),
         1500,
         true
@@ -664,7 +782,7 @@ app.post("/launch", async (req, res) => {
       }
     }
 
-    // 3. Jito tip
+    // 4. Jito tip
     const tipAccountsStr = await getTipAccounts({
       blockEngineUrl: JITO_BLOCK_ENGINE_URL,
       uuid: JITO_UUID
@@ -676,7 +794,7 @@ app.post("/launch", async (req, res) => {
     const tipTx = await buildTipTx(connection, payer, tipAccounts, finalTip);
     bundleTxs.push(tipTx);
 
-    // 4. Отправляем бандл
+    // 5. Отправляем бандл
     const signedBase64: string[] = bundleTxs.map((tx: any) =>
       Buffer.from(tx.serialize()).toString("base64")
     );
@@ -687,10 +805,11 @@ app.post("/launch", async (req, res) => {
 
     return res.json({
       ok: true,
-      mint: (createTx as any).mint?.toBase58() || "unknown",
+      mint: launchMint.toBase58(),
       bundle_sig: bundleSig,
       anti_detect: true,
-      wallets_count: wallets.length
+      wallets_count: wallets.length,
+      sent_via: "jito_bundle"
     });
   } catch (e: unknown) {
     console.error("Launch bundle error:", e);

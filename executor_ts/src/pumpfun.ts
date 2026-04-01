@@ -598,6 +598,7 @@ export async function buildBuyTx(
       realTokenReserves: asBN("793100000000000"),      // 793.1e6 токенов * 1e6 = 7.931e14 u64
       tokenTotalSupply: asBN("1000000000000000"),      // 1e9 токенов * 1e6 = 1e15 u64
       complete: asBN(0),
+      creator: payer.publicKey,
       isMayhemMode: asBN(0),
     };
   }

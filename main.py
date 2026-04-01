@@ -164,6 +164,7 @@ def launch_menu(manager: LaunchManager):
             symbol = Prompt.ask("Symbol", default="DW")
             desc = Prompt.ask("Description", default="Family Business")
             image = Prompt.ask("Image path", default=r"D:\Aladdin\memes\dean-winchester.jpeg")
+            dev_buy = float(Prompt.ask("Dev buy (SOL)", default="0.1"))
             buy = float(Prompt.ask("Buy per wallet (SOL)", default="0.03"))
 
             anti_level = Prompt.ask(
@@ -172,7 +173,15 @@ def launch_menu(manager: LaunchManager):
                 default="medium"
             )
 
-            manager.launch(name, symbol, desc, Path(image), buy, anti_level=anti_level)
+            manager.launch(
+                name, 
+                symbol, 
+                desc, 
+                Path(image), 
+                buy, 
+                anti_level=anti_level,
+                dev_buy_sol=dev_buy,
+            )
 
         elif choice == "2":
             break
@@ -183,18 +192,20 @@ def sell_menu(manager: LaunchManager):
         clear()
         console.print(Panel.fit("[bold magenta]Sell Menu[/bold magenta]", border_style="magenta"))
 
-        rprint("1. Dump All")
-        rprint("2. Dump %")
-        rprint("3. Single Wallet Sell")
-        rprint("4. Auto Sell by TP/SL + Trailing")
+        rprint("1. Dump Generated Wallets")
+        rprint("2. Sell Dev Wallet")
+        rprint("3. Dump Everything")
+        rprint("4. Dump %")
+        rprint("5. Single Wallet Sell")
+        rprint("6. Auto Sell by TP/SL + Trailing")
 
         if manager.auto_sell_running:
-            rprint("5. [red bold]🛑 Stop Auto Sell[/red bold]")
-            rprint("6. Back to Main Menu")
-            choices = ["1", "2", "3", "4", "5", "6"]
+            rprint("7. [red bold]🛑 Stop Auto Sell[/red bold]")
+            rprint("8. Back to Main Menu")
+            choices = ["1", "2", "3", "4", "5", "6", "7", "8"]
         else:
-            rprint("5. Back to Main Menu")
-            choices = ["1", "2", "3", "4", "5"]
+            rprint("7. Back to Main Menu")
+            choices = ["1", "2", "3", "4", "5", "6", "7"]
 
         choice = Prompt.ask("Choose", choices=choices)
 
@@ -202,19 +213,27 @@ def sell_menu(manager: LaunchManager):
             mint = Prompt.ask("Mint address")
             manager.sell_all(mint)
 
-        elif choice in ["2", "3"]:
+        elif choice == "2":
+            mint = Prompt.ask("Mint address")
+            manager.dev_sell(mint)
+
+        elif choice == "3":
+            mint = Prompt.ask("Mint address")
+            manager.sell_everything(mint)    
+        
+        elif choice in ["4", "5"]:
             console.print("[yellow]Эта функция скоро будет добавлена[/yellow]")
 
-        elif choice == "4":
+        elif choice == "6":
             mint = Prompt.ask("Mint токена")
             tp = float(Prompt.ask("TP % (50, 100, 200...)", default="100"))
             trailing = float(Prompt.ask("Trailing Stop %", default="30"))
             manager.auto_sell_tp(mint, tp, trailing if trailing else 0)
 
-        elif choice == "5" and manager.auto_sell_running:
+        elif choice == "7" and manager.auto_sell_running:
             manager.stop_auto_sell()
 
-        elif (choice == "5" and not manager.auto_sell_running) or choice == "6":
+        elif (choice == "7" and not manager.auto_sell_running) or choice == "8":
             break
 
         Prompt.ask("\nPress Enter to continue...")

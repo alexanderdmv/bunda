@@ -99,5 +99,14 @@
     "mint": "DRY_RUN_MINT_1772734427588",
     "anti_level": "medium",
     "buy_per_wallet_base": 0.03
+  },
+  {
+    "timestamp": "2026-04-01 01:59:56",
+    "name": "Dean W",
+    "symbol": "DW",
+    "mint": "2zEDBnKYbYxpRtsyxhi8QKYeF8bMhBiwgEJMS3oLrWws",
+    "anti_level": "medium",
+    "dev_buy_sol": 0.01,
+    "buy_per_wallet_base": 0.005
   }
 ]

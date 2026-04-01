@@ -355,8 +355,16 @@ class LaunchManager:
         console.print("[yellow]Кошельки теперь значительно живее для фильтров.[/yellow]")
 
     # ====================== LAUNCH WITH ANTI-DETECT ======================
-    def launch(self, name: str, symbol: str, description: str, image_path: Path, 
-               buy_sol_per_wallet: float = 0.03, anti_level: str = "medium"):
+    def launch(
+        self, 
+        name: str, 
+        symbol: str, 
+        description: str, 
+        image_path: Path, 
+        buy_sol_per_wallet: float = 0.03, 
+        anti_level: str = "medium",
+        dev_buy_sol: float = 0.0,
+    ):
         
         if not self.wallets:
             self.generate_wallets(15)
@@ -399,9 +407,10 @@ class LaunchManager:
             border_style="blue"
         ))
 
-        total = 0.025 + sum(buy_amounts) + sum(jito_tips)
+        total = 0.025 + dev_buy_sol + sum(buy_amounts) + sum(jito_tips)
         console.print(Panel.fit(
             f"Создание токена:     0.025 SOL\n"
+            f"Dev buy (main):      {dev_buy_sol:.3f} SOL\n"
             f"Покупки (с jitter):  {sum(buy_amounts):.3f} SOL\n"
             f"Jito tips (разные):  {sum(jito_tips):.4f} SOL\n"
             f"[bold yellow]Итого ≈ {total:.3f} SOL[/bold yellow]",
@@ -418,8 +427,9 @@ class LaunchManager:
             "description": description,
             "image_path": str(image_path.absolute()),
             "wallets": wallets_to_use,
-            "buy_amounts": buy_amounts,        # новое поле — индивидуальные суммы
-            "jito_tips": jito_tips,            # новое поле
+            "buy_amounts": buy_amounts,        
+            "jito_tips": jito_tips,
+            "dev_buy_sol": dev_buy_sol,            
             "dry_run": self.control.get("trading", {}).get("dry_run", True)
         }
         console.print("[yellow]DEBUG: Sending to {0}/launch[/yellow]".format(EXECUTOR_URL))
@@ -440,6 +450,7 @@ class LaunchManager:
                     "symbol": symbol,
                     "mint": mint,
                     "anti_level": anti_level,
+                    "dev_buy_sol": dev_buy_sol,
                     "buy_per_wallet_base": buy_sol_per_wallet
                 }
                 self._save_launch_history(history_entry)
@@ -463,8 +474,78 @@ class LaunchManager:
             logger.error(f"Не удалось подключиться к executor: {e}")
 
     # ====================== SELL ALL ======================
-    def sell_all(self, mint: str):
+    def _main_secret_b58(self) -> str:
+        if not self.main_kp:
+            raise Exception("Главный ключ не загружен")
+        return base58.b58encode(bytes(self.main_kp)).decode("utf-8")
+
+    def dev_sell(self, mint: str):
+        mint = self._is_valid_mint(mint)
+        if not mint:
+            return
+
+        if not self.main_kp:
+            console.print("[red]Главный ключ не найден[/red]")
+            return
+
+        main_pubkey = str(self.main_kp.pubkey())
+
+        console.print(f"[bold cyan]Продаём токены с главного кошелька {mint}...[/bold cyan]")
+
+        try:
+            current_tokens, ata_exists = self._get_wallet_token_balance(main_pubkey, mint)
+            if not ata_exists or current_tokens <= 0:
+                console.print("[yellow]На главном кошельке нет токенов этого mint[/yellow]")
+                return
+
+            payload = {
+                "side": "sell",
+                "mint": mint,
+                "dry_run": False,
+                "secret_b58": self._main_secret_b58(),
+                "sell_all": True,
+            }
+
+            r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=30)
+
+            if r.status_code == 200:
+                body = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                sig = body.get("signature") if isinstance(body, dict) else None
+                sig_part = f" | sig={sig[:8]}..." if sig else ""
+                console.print(
+                    f"[green]Главный кошелёк: продано[/green] ({current_tokens:.4f}){sig_part}"
+                )
+            else:
+                err = r.text[:220].replace("\n", " ")
+                console.print(f"[red]Главный кошелёк: ошибка {r.status_code}[/red]")
+                console.print(f"     {err}")
+
+        except Exception as e:
+            console.print("[red]Ошибка продажи с главного кошелька[/red]")
+            console.print(f"     {e}")
+
+    def sell_everything(self, mint: str):
+        mint = self._is_valid_mint(mint)
+        if not mint:
+            return
+
         self.emergency_stop()
+
+        console.print(Panel.fit(
+            f"[bold red]Продаём ВСЁ по mint {mint}[/bold red]\n"
+            f"1) Generated wallets\n"
+            f"2) Main wallet",
+            title="DUMP EVERYTHING",
+            border_style="red"
+        ))
+
+        self.sell_all(mint, do_emergency_stop=False)
+        self.dev_sell(mint)
+    
+    def sell_all(self, mint: str, do_emergency_stop: bool = True):
+        if do_emergency_stop:
+            self.emergency_stop()
+
         mint = self._is_valid_mint(mint)
         if not mint:
             return
@@ -553,7 +634,7 @@ class LaunchManager:
                         # ==================== TAKE PROFIT ====================
                         if current_price >= base_price * (1 + self.tp_percent / 100):
                             logger.success(f"🎯 TAKE PROFIT +{self.tp_percent}% ДОСТИГНУТ! Продаём ВСЁ...")
-                            self.sell_all(mint)
+                            self.sell_everything(mint)
                             self.auto_sell_running = False
                             break
 
@@ -561,7 +642,7 @@ class LaunchManager:
                         trailing_trigger = max_price * (1 - self.trailing_percent / 100)
                         if current_price <= trailing_trigger and max_price >= base_price * 1.08:  # защита от шума
                             logger.warning(f"⛔ TRAILING STOP (-{self.trailing_percent}%) СРАБОТАЛ! Продаём ВСЁ...")
-                            self.sell_all(mint)
+                            self.sell_everything(mint)
                             self.auto_sell_running = False
                             break
 
@@ -587,8 +668,12 @@ class LaunchManager:
             self.auto_sell_running = False
             console.print("[yellow]🛑 Auto Sell остановлен пользователем[/yellow]")
             
-            if self.auto_sell_thread and self.auto_sell_thread.is_alive():
-                self.auto_sell_thread.join(timeout=2.0)   # мягко ждём завершения
+            if (
+                self.auto_sell_thread
+                and self.auto_sell_thread.is_alive()
+                and self.auto_sell_thread is not threading.current_thread()
+            ):
+                self.auto_sell_thread.join(timeout=2.0)
             
             logger.success("✅ Auto Sell полностью остановлен")
         else:

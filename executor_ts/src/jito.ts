@@ -16,6 +16,23 @@ type RpcResponse<T> = {
   error?: { code: number; message: string; data?: unknown };
 };
 
+// Per Jito docs, tip accounts are static. Keep a built-in fallback so launch
+// does not fail when getTipAccounts is globally rate limited.
+const STATIC_JITO_TIP_ACCOUNTS = [
+  "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
+  "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe",
+  "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
+  "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49",
+  "DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh",
+  "ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt",
+  "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
+  "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT",
+] as const;
+
+let cachedTipAccounts: string[] | null = null;
+let cachedAt = 0;
+const TIP_CACHE_MS = 10 * 60 * 1000;
+
 function bundlesEndpoint(baseUrl: string, uuid?: string): string {
   const clean = baseUrl.replace(/\/$/, "");
   const url = `${clean}/api/v1/bundles`;
@@ -51,7 +68,26 @@ async function jitoRpc<T>(cfg: JitoConfig, method: string, params: unknown[]): P
 }
 
 export async function getTipAccounts(cfg: JitoConfig): Promise<string[]> {
-  return jitoRpc<string[]>(cfg, "getTipAccounts", []);
+  const now = Date.now();
+  if (cachedTipAccounts && now - cachedAt < TIP_CACHE_MS) {
+    return cachedTipAccounts;
+  }
+
+  try {
+    const live = await jitoRpc<string[]>(cfg, "getTipAccounts", []);
+    if (Array.isArray(live) && live.length > 0) {
+      cachedTipAccounts = live;
+      cachedAt = now;
+      return live;
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[jito] getTipAccounts failed, using static fallback: ${msg}`);
+  }
+
+  cachedTipAccounts = [...STATIC_JITO_TIP_ACCOUNTS];
+  cachedAt = now;
+  return cachedTipAccounts;
 }
 
 export async function sendBundle(cfg: JitoConfig, signedTxBase64: string[]): Promise<string> {
