@@ -108,5 +108,23 @@
     "anti_level": "medium",
     "dev_buy_sol": 0.01,
     "buy_per_wallet_base": 0.005
+  },
+  {
+    "timestamp": "2026-04-07 19:02:45",
+    "name": "ARTEMIS II",
+    "symbol": "NASA",
+    "mint": "4jZACMuPVJpEpg9cWLunGWNi6zL1HvFNVN1zGWUrhSvW",
+    "anti_level": "medium",
+    "dev_buy_sol": 0.2,
+    "buy_per_wallet_base": 0.2
+  },
+  {
+    "timestamp": "2026-04-07 23:22:06",
+    "name": "ARTEMIS 2",
+    "symbol": "NASA",
+    "mint": "DvCRvZUrLFNFfgwDHQpLK94z2Be2uqZssDPJqU1SrtE2",
+    "anti_level": "medium",
+    "dev_buy_sol": 0.05,
+    "buy_per_wallet_base": 0.02
   }
 ]

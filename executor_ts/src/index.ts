@@ -494,11 +494,23 @@ app.post("/trade", async (req, res) => {
       );
       quoteMeta = (tx as any).__quote;
     } else {
-      tx = await callMaybeOpts(
-        buildSellTx as any,
-        [connection, txSigner, mint, slippageBps],
-        { connection, payer: txSigner, mint, slippageBps }
-      );
+      const sellAll = Boolean(anyO.sell_all ?? false);
+      const tokenAmount = amountIn ? BigInt(Math.floor(Number(amountIn))) : undefined;
+      if (sellAll || !tokenAmount || tokenAmount <= 0n) {
+        // Полная продажа
+        tx = await callMaybeOpts(
+          buildSellTx as any,
+          [connection, txSigner, mint, undefined, slippageBps],
+          { connection, payer: txSigner, mint, slippageBps, sellAll: true }
+        );
+      } else {
+        // Частичная продажа по количеству токенов
+        tx = await callMaybeOpts(
+          buildSellTx as any,
+          [connection, txSigner, mint, tokenAmount, slippageBps],
+          { connection, payer: txSigner, mint, tokenAmount, slippageBps }
+        );
+      }
     }
 
     if (simulate) {
@@ -631,6 +643,8 @@ app.post("/launch", async (req, res) => {
       dev_buy_sol,
       buy_amounts,
       jito_tips,
+      twitter,
+      website,
       dry_run
     } = req.body;
 
@@ -655,7 +669,9 @@ app.post("/launch", async (req, res) => {
       name,
       symbol,
       description,
-      file: image_path
+      file: image_path,
+      twitter,
+      website
     });
 
     const launchMint = (createTx as any).mint || new PublicKey("11111111111111111111111111111111");

@@ -723,7 +723,8 @@ export async function buildSellTx(
   connection: Connection,
   payer: Keypair,
   mint: PublicKey,
-  slippageBps: number
+  tokenAmountOrSlippage?: bigint | number,
+  slippageBps: number = 1500
 ): Promise<Transaction> {
   const base = getPumpBase();
   const quoteFn = base.getSellSolAmountFromTokenAmount;
@@ -736,9 +737,18 @@ export async function buildSellTx(
   const { offline, fetchGlobal, fetchFeeConfig } = getSdk(connection);
   const tokenProgram = await detectTokenProgram(connection, mint);
 
-  // Get balance first; if none, fail early (don't call fetchSellState which throws).
-  const tokenAmount = await getTokenBalanceBN(connection, mint, payer.publicKey, tokenProgram);
-  if (tokenAmount.isZero()) throw new Error("No token balance to sell");
+  let tokenAmount: BN;
+  let isFullSell = true;
+
+  if (tokenAmountOrSlippage !== undefined && (typeof tokenAmountOrSlippage === "bigint" || typeof tokenAmountOrSlippage === "number")) {
+    // Partial sell — используем переданное количество токенов
+    tokenAmount = asBN(tokenAmountOrSlippage);
+    isFullSell = false;
+  } else {
+    // Full sell (старое поведение) — читаем весь баланс
+    tokenAmount = await getTokenBalanceBN(connection, mint, payer.publicKey, tokenProgram);
+    if (tokenAmount.isZero()) throw new Error("No token balance to sell");
+  }
 
   const [global, feeConfig, st] = await Promise.all([
     fetchGlobal(),
@@ -799,6 +809,7 @@ export async function buildSellTx(
   }
 
   pumpDebug("[sell-debug] mint=", mint.toBase58());
+  pumpDebug("[sell-debug] isFullSell=", isFullSell);
   pumpDebug("[sell-debug] tokenProgram=", tokenProgram.toBase58());
   pumpDebug("[sell-debug] sellInstructions arg keys=", Object.keys(args).sort());
   pumpDebug("[sell-debug] hasBondingCurveAccountInfo=", !!args.bondingCurveAccountInfo);
@@ -859,7 +870,9 @@ export async function createToken(
     name: string;
     symbol: string;
     description: string;
-    file: string;           // путь к картинке
+    file: string;
+    twitter?: string;
+    website?: string;           
   }
 ) {
   const base = getPumpBase();
@@ -884,9 +897,8 @@ export async function createToken(
   form.append('name', opts.name);
   form.append('symbol', opts.symbol);
   form.append('description', opts.description);
-  form.append('twitter', '');  // Опционально
-  form.append('telegram', '');
-  form.append('website', '');
+  form.append('twitter', opts.twitter ?? '');
+  form.append('website', opts.website ?? '');
   form.append('showName', 'true');
 
   let uploadResponse;

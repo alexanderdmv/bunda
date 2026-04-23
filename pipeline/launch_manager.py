@@ -277,7 +277,7 @@ class LaunchManager:
                 console.print(f"     Детали: {e}")
         console.print("[green]Withdraw All завершён[/green]")
 
-    # ====================== WALLET WARMUP 2.0 ======================
+    # ====================== WALLET WARMUP ======================
     def wallet_warmup(self, cycles: int = 5, intensity: str = "normal"):
         """
         intensity: "light" / "normal" / "heavy"
@@ -364,6 +364,8 @@ class LaunchManager:
         buy_sol_per_wallet: float = 0.03, 
         anti_level: str = "medium",
         dev_buy_sol: float = 0.0,
+        twitter: str = "",
+        website: str = "",
     ):
         
         if not self.wallets:
@@ -429,7 +431,9 @@ class LaunchManager:
             "wallets": wallets_to_use,
             "buy_amounts": buy_amounts,        
             "jito_tips": jito_tips,
-            "dev_buy_sol": dev_buy_sol,            
+            "dev_buy_sol": dev_buy_sol,
+            "twitter": twitter,
+            "website": website,            
             "dry_run": self.control.get("trading", {}).get("dry_run", True)
         }
         console.print("[yellow]DEBUG: Sending to {0}/launch[/yellow]".format(EXECUTOR_URL))
@@ -459,10 +463,18 @@ class LaunchManager:
                 if Prompt.ask("\nЗапустить Volume Maker сразу с этим mint’ом? (y/n)", choices=["y", "n"], default="y") == "y":
                     minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
                     trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
+                    buy_ratio = float(Prompt.ask("Buy ratio (0.50-0.80)", default="0.65"))
+                    reserve_ratio = float(Prompt.ask("Reserve ratio (0.25-0.45)", default="0.35"))
                     self.volume_running = True
                     def volume_wrapper():
                         try:
-                            self.start_volume_maker(minutes, trade_sol, mint=mint)
+                            self.start_volume_maker(
+                                minutes=minutes, 
+                                trade_sol=trade_sol, 
+                                mint=mint, 
+                                buy_ratio=buy_ratio, 
+                                reserve_ratio=reserve_ratio
+                            )
                         finally:
                             self.volume_running = False
                     self.volume_thread = threading.Thread(target=volume_wrapper, daemon=True)
@@ -714,7 +726,14 @@ class LaunchManager:
         logger.error(f"❌ Некорректный mint: {mint}")
         return None
     
-    def start_volume_maker(self, minutes: int = 30, trade_sol: float = 0.01, mint: str = None):
+    def start_volume_maker(
+        self,
+        minutes: int = 30,
+        trade_sol: float = 0.01,
+        mint: str = None,
+        buy_ratio: float = 0.65,      # сколько % кошельков покупают в цикле
+        reserve_ratio: float = 0.35   # сколько % токенов оставляем в резерве (для финального дампа)
+    ):
         if not self.wallets:
             logger.error("Нет кошельков")
             return
@@ -733,7 +752,7 @@ class LaunchManager:
 
         self.mint = mint
 
-        # Первичная синхронизация реальных token balances для всех кошельков.
+        # Первичная синхронизация реальных балансов токенов
         self.wallet_positions = {}
         for w in self.wallets:
             tokens, _ = self._get_wallet_token_balance(w["pubkey"], mint)
@@ -744,7 +763,8 @@ class LaunchManager:
         self.volume_minutes = minutes
         self.volume_logs.clear()
 
-        logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}...")
+        logger.info(f"🚀 Volume Maker запущен на {minutes} минут по токену {mint[:8]}... | "
+                    f"buy_ratio={buy_ratio*100:.0f}% | reserve={reserve_ratio*100:.0f}%")
 
         end_time = time.time() + (minutes * 60)
         cycle = 0
@@ -773,21 +793,27 @@ class LaunchManager:
                 current_tokens, ata_exists = self._get_wallet_token_balance(pubkey_str, mint)
                 self.wallet_positions[pubkey_str] = current_tokens
 
-                # Не сравниваем token amount с SOL amount — это разные единицы.
-                # Если токенов нет: BUY. Если токены уже есть: миксуем BUY/SELL.
+                # Определение действия
                 if current_tokens <= 0:
                     side = "buy"
                 else:
-                    side = random.choices(["sell", "buy"], weights=[55, 45], k=1)[0]
+                    reserved = current_tokens * reserve_ratio
+                    free_tokens = current_tokens - reserved
+
+                    if free_tokens <= 0.0001:
+                        side = "buy"
+                    else:
+                        side = random.choices(
+                            ["buy", "sell"],
+                            weights=[buy_ratio, 1.0 - buy_ratio],
+                            k=1
+                        )[0]
 
                 if side == "buy":
                     required_balance = self._required_buy_balance(trade_sol, ata_exists)
                     if balance < required_balance:
                         self.volume_logs.append(
                             f"  {pubkey_str[:6]}... BUY skip: low SOL {balance:.4f} < {required_balance:.4f}"
-                        )
-                        logger.warning(
-                            f"Недостаточно SOL для BUY на {pubkey_str}. balance={balance:.6f}, need≈{required_balance:.6f}, ata_exists={ata_exists}"
                         )
                         continue
 
@@ -799,7 +825,11 @@ class LaunchManager:
                         "secret_b58": w["secret_b58"],
                     }
 
-                else:
+                else:  # SELL
+
+                    current_tokens, _ = self._get_wallet_token_balance(pubkey_str, mint)
+                    self.wallet_positions[pubkey_str] = current_tokens
+                    
                     if current_tokens <= 0:
                         self.volume_logs.append(f"  {pubkey_str[:6]}... SELL skip: no tokens")
                         continue
@@ -808,14 +838,24 @@ class LaunchManager:
                         self.volume_logs.append(f"  {pubkey_str[:6]}... SELL skip: low SOL for fees")
                         continue
 
+                    reserved = current_tokens * reserve_ratio
+                    free_tokens = current_tokens - reserved
+
+                    if free_tokens <= 0.0001:
+                        self.volume_logs.append(f"  {pubkey_str[:6]}... SELL skip: only reserve left")
+                        continue
+
+                    sell_amount = free_tokens * 0.82
+
                     payload = {
                         "side": "sell",
                         "mint": mint,
                         "dry_run": False,
                         "secret_b58": w["secret_b58"],
-                        "sell_all": True,
+                        "amount_in": sell_amount,
                     }
 
+                # Выполнение транзакции
                 try:
                     r = requests.post(f"{EXECUTOR_URL}/trade", json=payload, timeout=20)
 
@@ -827,6 +867,7 @@ class LaunchManager:
                         time.sleep(0.8)
                         new_tokens, _ = self._get_wallet_token_balance(pubkey_str, mint)
                         self.wallet_positions[pubkey_str] = new_tokens
+
                         self.volume_logs.append(
                             f"  {pubkey_str[:6]}... {side.upper()} OK (tokens: {new_tokens:.4f}){sig_part}"
                         )
@@ -836,7 +877,7 @@ class LaunchManager:
                             f"  {pubkey_str[:6]}... {side.upper()} error {r.status_code} (tokens: {current_tokens:.4f})"
                         )
                         logger.error(
-                            f"Trade failed for {pubkey_str[:8]}... side={side} status={r.status_code} body={err}"
+                            f"Trade failed for {pubkey_str[:8]}... side={side} status={r.status_code}"
                         )
                 except Exception as e:
                     self.volume_logs.append(f"  {pubkey_str[:6]}... таймаут: {str(e)}")

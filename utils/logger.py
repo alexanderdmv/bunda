@@ -9,7 +9,7 @@ def setup_logger(level: str = "INFO"):
         try:
             logger.level(level, no=20, color="<cyan>", icon="🚀")
         except ValueError:
-            pass  # уже существует — игнорируем
+            pass  
 
     logger.add(
         sys.stdout,

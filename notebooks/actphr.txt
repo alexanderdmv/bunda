@@ -13,8 +13,6 @@ python -m py_compile pipeline/adapters/dexscraper_adapter.py / проверка 
 
 api_key: "PASTE_BIRDEYE_KEY_HERE"  (store in config/secrets.yaml or env BIRDEYE_API_KEY)
 
-python -m tools.patterns_50k --save / сохранить после фильтра
-
 npm install - установка библиотек(package.json)
 npm audit - проверка библиотек
 
@@ -64,8 +62,6 @@ irm "http://127.0.0.1:8787/quote?side=sell&mint=FxeVbckaxupVcDGbM7q1K47Skr8Z9JY8
 python tools\anamnesis.py --mints CDDDf9fnqMnbi4PFvv74RdpfYSSugFtkpTHeiLGRpump
 
 ping mainnet.block-engine.jito.wtf  - узнаем пинг сервера
-
-!node -e "console.log(crypto.randomUUID())" - сгенерировать JITO_UUID
 
 git rm --cached -- data/wallets.json
 git add .gitignore

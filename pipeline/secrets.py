@@ -49,3 +49,4 @@ def get_secret(secrets: Dict[str, Any], dotted_path: str, default: Optional[str]
     if cur is None:
         return default
     return str(cur)
+

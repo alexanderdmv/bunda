@@ -1559,3 +1559,29 @@
 2026-04-01T02:01:02.165591+0200 | WARNING | Недостаточно SOL для BUY на CedVYPHCQWzjwpJCrAWemRoSRmyi1h5GbG6yQPbJkt6S. balance=0.002020, need≈0.003000, ata_exists=True
 2026-04-01T02:01:23.300811+0200 | SUCCESS | ✅ Volume Maker завершён
 2026-04-01T02:01:23.300811+0200 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-04-01T14:27:34.183961+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-04T18:36:01.497295+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-04T19:24:36.093609+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-04T19:24:52.926368+0200 | ERROR | ❌ Mint пустой
+2026-04-04T19:46:40.702549+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T14:40:09.860519+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T18:30:50.934520+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T18:34:21.088239+0200 | ERROR | Ошибка: {"ok":false,"error":"IPFS upload request failed: request to https://pump.fun/api/ipfs failed, reason: read ECONNRESET"}
+2026-04-07T18:46:31.549597+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T18:48:49.682356+0200 | ERROR | Ошибка: {"ok":false,"error":"Simulation failed. \nMessage: Transaction simulation failed: Error processing Instruction 1: custom program error: 0x1. \nLogs: \n[\n  \"Program log: Instruction: TransferChecked\",\n  \"Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb consumed 2475 of 335107 compute units\",\n  \"Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb success\",\n  \"Program 11111111111111111111111111111111 invoke [2]\",\n  \"Program 11111111111111111111111111111111 success\",\n  \"Program 11111111111111111111111111111111 invoke [2]\",\n  \"Transfer: insufficient lamports 218112474, need 234775307\",\n  \"Program 11111111111111111111111111111111 failed: custom program error: 0x1\",\n  \"Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P consumed 58186 of 379970 compute units\",\n  \"Program 6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P failed: custom program error: 0x1\"\n]. \nCatch the `SendTransactionError` and call `getLogs()` on it for full details."}
+2026-04-07T19:00:11.750989+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T19:02:45.836241+0200 | SUCCESS | ✅ Bundle отправлен с анти-детектом!
+2026-04-07T19:02:45.850950+0200 | INFO | Mint: 4jZACMuPVJpEpg9cWLunGWNi6zL1HvFNVN1zGWUrhSvW
+2026-04-07T19:02:45.850950+0200 | INFO | Bundle: 3SmK3hQZmqHftqqDmJYTXUnJqhn2TBrhXoBigdYqHDMgPYwr3872qUz7uqSff5cYtqZwWVHsBTabUdXFUYk4nkjS
+2026-04-07T19:02:58.710986+0200 | INFO | 🚀 Volume Maker запущен на 30 минут по токену 4jZACMuP... | buy_ratio=65% | reserve=35%
+2026-04-07T19:09:39.609197+0200 | ERROR | ❌ Mint пустой
+2026-04-07T19:10:04.025714+0200 | SUCCESS | ✅ Volume Maker полностью остановлен
+2026-04-07T19:10:04.219663+0200 | SUCCESS | ✅ Volume Maker завершён
+2026-04-07T23:17:06.419137+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-07T23:18:42.047331+0200 | ERROR | Ошибка: {"ok":false,"error":"IPFS upload request failed: request to https://pump.fun/api/ipfs failed, reason: read ECONNRESET"}
+2026-04-07T23:22:06.226462+0200 | SUCCESS | ✅ Bundle отправлен с анти-детектом!
+2026-04-07T23:22:06.238870+0200 | INFO | Mint: DvCRvZUrLFNFfgwDHQpLK94z2Be2uqZssDPJqU1SrtE2
+2026-04-07T23:22:06.239291+0200 | INFO | Bundle: 3513zrZT5rgqDzA6Y2XNFGRcUpesAmTBZZcwrC7LBZjGN9PXoKRYEqR3Nok6qJZ3e2M3L18Gd8xDr3QTY6s6CEvn
+2026-04-13T15:15:23.091120+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-13T15:16:11.297070+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH
+2026-04-22T15:41:51.142970+0200 | SUCCESS | ✅ Главный ключ загружен: 57bvH9NrMPpZBwfa1NoaZUAinMhtKvxWBDKJxwrNVsAH

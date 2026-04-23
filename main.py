@@ -60,7 +60,6 @@ def main_menu(manager: LaunchManager):
             if manager.volume_running:
                 manager.show_volume_status()
                 
-                # Правильная обработка выбора
                 action = Prompt.ask(
                     "Выберите действие", 
                     choices=["6", "back"], 
@@ -71,9 +70,13 @@ def main_menu(manager: LaunchManager):
                     manager.stop_volume_maker()
                 Prompt.ask("\nPress Enter to continue...")
             else:
+                # === Параметры Volume Maker ===
                 minutes = int(Prompt.ask("Сколько минут volume?", default="30"))
-                trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.01"))
+                trade_sol = float(Prompt.ask("Объём за трейд (SOL)", default="0.001"))               
+                buy_ratio = float(Prompt.ask("Buy ratio (0.50 - 0.80) — доля покупок", default="0.65"))
+                reserve_ratio = float(Prompt.ask("Reserve ratio (0.25 - 0.45) — оставлять в резерве", default="0.35"))
 
+                # Выбор mint
                 last_mint = manager._load_last_mint()
                 use_last = Prompt.ask(f"Использовать последний mint {last_mint[:10]}...? (y/n)", default="y").lower() == "y"
                 
@@ -87,13 +90,25 @@ def main_menu(manager: LaunchManager):
                 if not manager._is_valid_mint(manager.mint):
                     console.print("[red]Invalid mint! Пожалуйста, введите реальный mint.[/red]")
                     Prompt.ask("\nPress Enter to continue...")
-                    continue  # Не запускаем
+                    continue
 
                 manager._save_last_mint(manager.mint)
 
-                # Теперь запускаем thread
+                # Запуск Volume Maker
                 manager.volume_running = True
-                manager.volume_thread = threading.Thread(target=manager.start_volume_maker, args=(minutes, trade_sol, manager.mint), daemon=True)
+                def volume_wrapper():
+                    try:
+                        manager.start_volume_maker(
+                            minutes=minutes,
+                            trade_sol=trade_sol,
+                            mint=manager.mint,
+                            buy_ratio=buy_ratio,
+                            reserve_ratio=reserve_ratio,
+                        )
+                    finally:
+                        manager.volume_running = False
+
+                manager.volume_thread = threading.Thread(target=volume_wrapper, daemon=True)
                 manager.volume_thread.start()
 
                 console.print(f"[green]✅ Volume Maker запущен на {minutes} минут по токену {manager.mint[:10]}...[/green]")
@@ -132,12 +147,18 @@ def wallet_menu(manager: LaunchManager):
             manager.get_main_wallet_status()    
         elif choice == "3":
             manager.get_balances()
+        elif choice == "4":
+            console.print("[yellow]Эта функция скоро будет добавлена[/yellow]")    
         elif choice == "5":
             manager.withdraw_all()
         elif choice == "6":
             cycles = int(Prompt.ask("Сколько циклов прогрева?", default="4"))
-            amount = float(Prompt.ask("Макс. сумма за трансфер (SOL)", default="0.008"))
-            manager.wallet_warmup(cycles, amount)    
+            intensity = Prompt.ask(
+                "Интенсивность warmup",
+                choices=["light", "normal", "heavy"],
+                default="normal"
+            )
+            manager.wallet_warmup(cycles, intensity)    
         elif choice == "7":
             if Prompt.ask("Удалить все кошельки? (y/n)", choices=["y","n"]) == "y":
                 Path("data/wallets.json").unlink(missing_ok=True)
@@ -163,6 +184,8 @@ def launch_menu(manager: LaunchManager):
             name = Prompt.ask("Token name", default="Dean W")
             symbol = Prompt.ask("Symbol", default="DW")
             desc = Prompt.ask("Description", default="Family Business")
+            x_url = Prompt.ask("X / Twitter", default="")
+            website_url = Prompt.ask("Website", default="")
             image = Prompt.ask("Image path", default=r"D:\Aladdin\memes\dean-winchester.jpeg")
             dev_buy = float(Prompt.ask("Dev buy (SOL)", default="0.1"))
             buy = float(Prompt.ask("Buy per wallet (SOL)", default="0.03"))
@@ -181,6 +204,8 @@ def launch_menu(manager: LaunchManager):
                 buy, 
                 anti_level=anti_level,
                 dev_buy_sol=dev_buy,
+                twitter=x_url,
+                website=website_url,
             )
 
         elif choice == "2":
